@@ -1,0 +1,896 @@
+#!/bin/bash
+
+# ###########################################################################
+# nanoca - A small file based X.509 Certificate Authority, CA
+# Copyright (C) 2020 Johan Hedin
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+# ###########################################################################
+
+# Requires bash >= 4, openssl >= ?, awk, ls and wc.
+#
+# Created: 2020-07-10
+# Updated: 2020-07-16
+#
+# TODO:
+#  - Take care of stderr from openssl and print that on error
+#  - Support for having the keys on a smartcard
+#  - Make sure that automatically added CN to SAN only occure once
+#  - Make it possible to give CRL days as input when creating new CRLs
+#  - Add support for creating intermediate CAs and for signing CA certs
+#
+
+# Basic constants
+VERSION="1.0.0"
+BASENAME="$(basename $0)"
+OPENSSL="/usr/bin/openssl"
+AWK="/usr/bin/awk"
+
+# CA lifespan (20 years)
+CA_DAYS_DEFAULT="7300"
+
+# CA RSA key size (4096 bits)
+CA_RSA_KEYSIZE_DEFAULT="4096"
+
+# CA RSA key protected by password [Yes/No] (No)
+CA_KEY_PW_PROTECTED_DEAFULT="No"
+
+# Path to the CA (working directory)
+CA_PATH_DEFAULT="$(pwd)"
+
+# Signed certificate lifespan (1 year)
+CERT_DAYS_DEFAULT="365"
+
+# Certificate RSA key size for a newly created key (4096 bits)
+CERT_RSA_KEYSIZE_DEFAULT="4096"
+
+# Certificate RSA key protected by password [Yes/No] (No)
+CERT_KEY_PW_PROTECTED_DEAFULT="No"
+
+# CRL lifespan (netx update) (one month)
+CRL_DAYS_DEFAULT="30"
+
+
+# Global variable that hold the name of a temporary file
+openssl_cfg=""
+
+
+# Exit hook to remove any created temporary file
+function exit_cleanup() {
+    [[ -f ${openssl_cfg} ]] && rm -f ${openssl_cfg}
+}
+
+
+# Function to get a yes/no answer. Must be called with two arguments:
+#
+#   $1 - Default answer if non is given. Must be one of the strings
+#        "Yes" or "No"
+#   $2 - The question to be prompted to the user (without a trailing ?)
+#
+# The return vaule is 0 if the answer is "Yes" or 1 if the answer is "No".
+#
+# Examples:
+#
+#   if yesanswer "Yes" "Do you want to continue" ; then
+#       echo "You answered Yes"
+#   else
+#       echo "You answered No"
+#   fi
+#
+#   if yesanswer "No" "Do you want to continue" ; then
+#       echo "You answered Yes"
+#   else
+#       echo "You answered No"
+#   fi
+#
+function yesanswer() {
+    local default="$1"
+    local prompt="$2"
+    local return_value=1
+    local match="(^[Yy])"
+    local res=""
+
+    if [[ "${default,,}" == "yes" ]] ; then
+        match="(^[Yy])|(^\$)"
+    fi
+
+    read -e -p "${prompt}? [Yes/No] (${default}): " res
+
+    [[ "${res}" =~ ${match} ]]
+    return_value=$?
+
+    return ${return_value}
+} # yesanswer
+
+
+# Function to build a prefixed SAN string. Example:
+#   prefix_san www.example.com,10.0.0.1 -> "DNS:www.example.com,IP:10.0.0.1"
+#
+function prefix_san() {
+    local csr_san=""
+    local prefix=""
+
+    for san_entry in "$@" ; do
+        prefix="DNS"
+        if [[ "${san_entry}" =~ ^([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})$ ]] ; then
+            if [[ ${BASH_REMATCH[1]} -le 255 && \
+                  ${BASH_REMATCH[2]} -le 255 && \
+                  ${BASH_REMATCH[3]} -le 255 && \
+                  ${BASH_REMATCH[4]} -le 255 ]] ; then
+                prefix="IP"
+            fi
+        fi
+        csr_san="${csr_san}${csr_san:+,}${prefix}:${san_entry}"
+    done
+
+    echo "${csr_san}"
+    return 0
+} # prefix_san
+
+
+# Echo the name of the CA given the directory in $1. Echos the empty string
+# if $1 does not point to a valid nanoca directory
+function get_ca_name() {
+    local ca_dir="$1"
+    local num_key_files=""
+    local key_file=""
+    local ca_name_tmp=""
+    local ca_name=""
+
+    num_key_files=$(ls ${ca_dir}/private/*.key 2>/dev/null | wc -l)
+    if [[ "${num_key_files}" == "1" ]] ; then
+        key_file="$(ls ${ca_dir}/private/*.key)"
+        ca_name_tmp="$(basename ${key_file})"
+        ca_name_tmp="${ca_name_tmp%.*}"
+
+        if [[ -f "${ca_dir}/public/${ca_name_tmp}.crt" && \
+              -d "${ca_dir}/crts" && \
+              -d "${ca_dir}/csrs" && \
+              -f "${ca_dir}/private/crtserial" && \
+              -f "${ca_dir}/private/crlserial" && \
+              -f "${ca_dir}/private/crtdb" ]] ; then
+            ca_name="${ca_name_tmp}"
+        fi
+    fi
+
+    echo "${ca_name}"
+    return 0
+} # get_ca_name
+
+
+# Create a new CA in the directory pointed to by $1
+function create_ca() {
+    local ca_dir="$1"
+    local ca_c=""
+    local ca_st=""
+    local ca_l=""
+    local ca_o=""
+    local ca_ou=""
+    local ca_cn=""
+    local ca_days="${CA_DAYS_DEFAULT}"
+    local ca_rsa_keysize="${CA_RSA_KEYSIZE_DEFAULT}"
+    local ca_pw_protected="${CA_KEY_PW_PROTECTED_DEAFULT}"
+    local ret=""
+
+    # Verify that the directory for the new CA exists and is empty
+    if [[ -d "${ca_dir}" ]] ; then
+        # Requested CA directory exist. Verify that it is empty
+        if [[ -n "$(ls -A "${ca_dir}")" ]] ; then
+            echo "Error: Directory '${ca_dir}' is not empty." >&2
+            return 1
+        fi
+    else
+        echo "Error: Directory '${ca_dir}' does not exist." >&2
+        return 1
+    fi
+
+    echo "Enter CA Subject (the CN attribute is mandatory, others can be left out"
+    echo "by entering a empty value):"
+    read -e -i "${ca_c}"  -p "ISO 3166-1 alpha-2 Country Code (C): " ca_c
+    read -e -i "${ca_st}" -p "State or Provice (ST): " ca_st
+    read -e -i "${ca_l}"  -p "Location or City (L): " ca_l
+    read -e -i "${ca_o}"  -p "Organazation (O): " ca_o
+    read -e -i "${ca_ou}" -p "Organazational Unit (OU): " ca_ou
+    read -e -i "${ca_cn}" -p "Common Name (CN): " ca_cn
+
+    # We have some strict requirements on the CN attribute since
+    # it is used in the filenames for the CA certificate and key
+    if [[ -z "${ca_cn}" || ! "${ca_cn}" =~ ^[a-zA-Z0-9\ \-]+$ ]] ; then
+        echo "Error: Common Name for the CA must be non-empty and must satisfy ^[a-zA-Z0-9 -]\$." >&2
+        return 1
+    fi
+
+    if yesanswer "${ca_pw_protected}" "Should the CA private key be pass phrase protected" ; then
+        ca_pw_protected=""
+    else
+        unset ca_pw_protected
+    fi
+
+    # Build CA subject string
+    local ca_subject=""
+    [[ -n "${ca_c}" ]]  && ca_subject="${ca_subject}/C=${ca_c}"
+    [[ -n "${ca_st}" ]] && ca_subject="${ca_subject}/ST=${ca_st}"
+    [[ -n "${ca_l}" ]]  && ca_subject="${ca_subject}/L=${ca_l}"
+    [[ -n "${ca_o}" ]]  && ca_subject="${ca_subject}/O=${ca_o}"
+    [[ -n "${ca_ou}" ]] && ca_subject="${ca_subject}/OU=${ca_ou}"
+    ca_subject="${ca_subject}/CN=${ca_cn}"
+
+    # Create basename for key, crt and crl files for this CA based on the CN
+    local ca_basename="${ca_cn,,}"
+    local ca_basename="${ca_basename// /-}"
+
+    # Ask for verification
+    if ! yesanswer "No" "Create new CA in ${ca_dir}" ; then
+        return 1
+    fi
+
+    # Create directory layout
+    mkdir "${ca_dir}/public"
+    mkdir "${ca_dir}/crts"
+    mkdir "${ca_dir}/csrs"
+    mkdir "${ca_dir}/private"
+    touch "${ca_dir}/private/crtdb"
+    echo "01" > "${ca_dir}/private/crtserial"
+    echo "01" > "${ca_dir}/private/crlserial"
+
+    # The database file (private/index) has a six field TAB separated layout
+    # with the following fields:
+    #   State  - E, R, V for Expired, Revoked and Validated
+    #   Exparation datetime
+    #   Revokation datetime and reason (only set for type R entires)
+    #   Serial
+    #   File name of certificate. Always "unknown"
+    #   Certificate subject name
+    #
+    # For a V entry to change to a E entry, openssl ca updatedb
+
+    # To be able to control all CA settings as arguments to openssl we need an
+    # "empty" openssl.cfg file to get rid of the default authorityKeyIdentifier
+    # that should not be present in a root CA.
+    openssl_cfg="$(mktemp -q "${ca_dir}/nanoca-tmp-XXXXXX.cfg")"
+    if [[ -f "${openssl_cfg}" ]] ; then
+        cat <<- EOF > "${openssl_cfg}"
+	# Temporary file that should not be lying around here.
+	# Can be safely removed if found.
+	[req]
+	distinguished_name = ca_distinguished_name
+	
+	[ca_distinguished_name]
+	EOF
+    else
+        echo "Error: Unable to create temporary config file." >&2
+        return 1
+    fi
+
+    ${OPENSSL} req \
+        -config "${openssl_cfg}" \
+        -x509 \
+        -utf8 \
+        -sha256 \
+        -days ${ca_days}  \
+        -newkey rsa:${ca_rsa_keysize} \
+        -keyout "${ca_dir}/private/${ca_basename}.key" \
+        ${ca_pw_protected--nodes} \
+        -subj "${ca_subject}" \
+        -addext "basicConstraints=critical,CA:true" \
+        -addext "subjectKeyIdentifier=hash" \
+        -addext "keyUsage=critical,keyCertSign,cRLSign" \
+        -outform PEM \
+        -out "${ca_dir}/public/${ca_basename}.crt" \
+    2> /dev/null
+    ret=$?
+
+    if [[ ${ret} -eq 0 ]] ; then
+        if [[ -n "${ca_pw_protected+x}" ]] ; then
+            echo "CA '${ca_cn}' successfully created. Please do not forget the password."
+        else
+            echo "CA '${ca_cn}' successfully created."
+        fi
+    else
+        echo "Error: Failed to create CA." >&2
+        rm -rf "${ca_dir}/private" "${ca_dir}/public" "${ca_dir}/csrs" "${ca_dir}/crts"
+    fi
+
+    return ${ret}
+} # create_ca
+
+
+# Function to create a CSR.
+function create_request() {
+    local csr_keyfile="$1"
+    local csr_outfile="$2"
+    local csr_c=""
+    local csr_st=""
+    local csr_l=""
+    local csr_o=""
+    local csr_ou=""
+    local csr_cn=""
+    local csr_subject=""
+    local csr_ku=""
+    local csr_eku=""
+    local csr_san=""
+    local csr_keysize="${CERT_RSA_KEYSIZE_DEFAULT}"
+    local res=""
+    local ret=1
+    local san_str=""
+    local create_keyfile=1
+    local keyfile_pw_protected="${CERT_KEY_PW_PROTECTED_DEAFULT}"
+
+    # Verify that the requested keyfile does not point to a directory
+    if [[ "${csr_keyfile}" == "" || \
+          "${csr_keyfile}" == "." || \
+          "${csr_keyfile}" == ".."  || -d "${csr_keyfile}" ]] ; then
+        echo "Error: Invalid path to key file." >&2
+        return 1
+    fi
+
+    # Verify that the requested outfile does not point to a directory
+    if [[ "${csr_outfile}" == "" || \
+          "${csr_outfile}" == "." || \
+          "${csr_outfile}" == ".." || -d "${csr_outfile}" ]] ; then
+        echo "Error: Invalid path to output file." >&2
+        return 1
+    fi
+
+    # If the requested key file already exist, use it instead of creating
+    # a new one
+    if [[ -f "${csr_keyfile}" ]] ; then
+        create_keyfile=0
+    fi
+
+    # TODO: Ask the user wehter the certificate is a machine certificate or
+    # a personal. If personal, the Subject should include given name, last
+    # name and so on. And a question about e-mail address should be asked (
+    # and put in the SAN).
+
+    # Collect Subject attributes from user
+    echo "Enter Subject (the CN attribute is mandatory, others can"
+    echo "be left out by entering a empty value):"
+    read -e -i "${csr_c}"  -p "ISO 3166-1 alpha-2 Country Code (C): " csr_c
+    read -e -i "${csr_st}" -p "State or Provice (ST): " csr_st
+    read -e -i "${csr_l}"  -p "Location or City (L): " csr_l
+    read -e -i "${csr_o}"  -p "Organazation (O): " csr_o
+    read -e -i "${csr_ou}" -p "Organazational Unit (OU): " csr_ou
+    read -e -i "${csr_cn}" -p "Common Name (CN): " csr_cn
+
+    # Verify that the CN is not empty
+    if [[ -z "${csr_cn}" ]] ; then
+        echo "Error: Common Name (CN) can not be empty." >&2
+        return 1
+    fi
+
+    # Hard code key usage for the time being. The usage set here should work
+    # for the intended certificate usages for nanoca. Se RFC 5820 chapter
+    # 4.2.1.3 and 4.2.1.12 for documentation.
+    csr_ku="digitalSignature,keyEncipherment"
+
+    # Get Extended Key Usage settings from the user
+    if yesanswer "Yes" "Should the cert be used for TLS server auth" ; then
+        csr_eku="${csr_eku}${csr_eku:+,}serverAuth"
+    fi
+    if yesanswer "No" "Should the cert be used for TLS client auth" ; then
+        csr_eku="${csr_eku}${csr_eku:+,}clientAuth"
+    fi
+    # TODO: Add more EKUs like codeSigning and emailProtection. But only email
+    # if user certificate
+
+    # Collect SAN from the user
+    read -e -p "Space separated list of SAN (DNS name or IPv4-address) to be added: " san_str
+
+    # If SAN are to be added, the CN must be repeted in the SAN for browsers
+    # to be happy (note: we might get the CN twice if the user adds it to the SAN
+    # manually)
+    if [[ -n ${san_str} ]] ; then
+        san_str="${csr_cn} ${san_str}"
+    fi
+
+    # Ask if a newly created kes should be pass phrase protected
+    if [[ ${create_keyfile} -eq 1 ]] ; then
+        if yesanswer "${keyfile_pw_protected}" "Pass phrase protect the new RSA key" ; then
+            keyfile_pw_protected="Yes"
+        fi
+    fi
+
+    # Build Subject string
+    [[ -n "${csr_c}" ]]  && csr_subject="${csr_subject}/C=${csr_c}"
+    [[ -n "${csr_st}" ]] && csr_subject="${csr_subject}/ST=${csr_st}"
+    [[ -n "${csr_l}" ]]  && csr_subject="${csr_subject}/L=${csr_l}"
+    [[ -n "${csr_o}" ]]  && csr_subject="${csr_subject}/O=${csr_o}"
+    [[ -n "${csr_ou}" ]] && csr_subject="${csr_subject}/OU=${csr_ou}"
+    csr_subject="${csr_subject}/CN=${csr_cn}"
+
+    # Build correct SAN by prefixing the entries accordingly
+    csr_san=$(prefix_san ${san_str})
+
+    echo ""
+    echo "You are about to create a new CSR using the following parameters:"
+    echo "    Output CSR file: ${csr_outfile}"
+    if [[ ${create_keyfile} -eq 1 ]] ; then
+        echo "    Output Key file: ${csr_keyfile}"
+        echo "    Output Key size: ${csr_keysize}"
+        echo "    Output Key pass phrase protected: ${keyfile_pw_protected}"
+    else
+        echo "    Existing Key file: ${csr_keyfile}"
+    fi
+    echo "    Subject: ${csr_subject}"
+    [[ -n "${csr_ku}" ]]  &&  echo "    Key Usage: ${csr_ku}"
+    [[ -n "${csr_ku}" ]]  &&  echo "    Extended Key Usage: ${csr_eku}"
+    [[ -n "${csr_san}" ]]  && echo "    Subject Alternative Name: ${csr_san}"
+
+    if ! yesanswer "No" "Continue" ; then
+        return 1
+    fi
+
+    if [[ -f "${csr_outfile}" ]] ; then
+        if ! yesanswer "No" "Warning: Output CSR file already exists. Overwrite" ; then
+            return 1
+        fi
+    fi
+
+    # Prepare KU, EKU and SAN
+    [[ -n "${csr_ku}" ]]  && csr_ku="keyUsage=${csr_ku}"
+    [[ -n "${csr_eku}" ]] && csr_eku="extendedKeyUsage=${csr_eku}"
+    [[ -n "${csr_san}" ]] && csr_san="subjectAltName=${csr_san}"
+
+    # Temporary config file to openssl
+    openssl_cfg=$(mktemp -q "/tmp/nanoca-tmp-XXXXXX.cfg")
+    if [[ -f "${openssl_cfg}" ]] ; then
+        cat <<- EOF > "${openssl_cfg}"
+	# Temporary file that should not be lying around here.
+	# Can be safely removed if found.
+	[req]
+	distinguished_name = csr_distinguished_name
+	
+	[csr_distinguished_name]
+	EOF
+    else
+        echo "Error: Unable to create temporary config file. Aborting." >&2
+        return 1
+    fi
+
+    if [[ ${create_keyfile} -eq 1 ]] ; then
+        local enc_arg="-nodes"
+        if [[ ${keyfile_pw_protected} == "Yes" ]] ; then
+            enc_arg=""
+        fi
+
+        ${OPENSSL} req \
+            -config "${openssl_cfg}" \
+            -new \
+            -newkey rsa:${csr_keysize} \
+            -keyout "${csr_keyfile}" \
+            ${enc_arg} \
+            -utf8 \
+            -sha256 \
+            -subj "${csr_subject}" \
+            -addext "basicConstraints=critical,CA:false" \
+            -addext "subjectKeyIdentifier=hash" \
+            ${csr_ku:+-addext} ${csr_ku} \
+            ${csr_eku:+-addext} ${csr_eku} \
+            ${csr_san:+-addext} ${csr_san} \
+            -out "${csr_outfile}" \
+        2>/dev/null
+        ret=$?
+    else
+        ${OPENSSL} req \
+            -config "${openssl_cfg}" \
+            -new \
+            -key "${csr_keyfile}" \
+            -utf8 \
+            -sha256 \
+            -subj "${csr_subject}" \
+            -addext "basicConstraints=critical,CA:false" \
+            -addext "subjectKeyIdentifier=hash" \
+            ${csr_ku:+-addext} ${csr_ku} \
+            ${csr_eku:+-addext} ${csr_eku} \
+            ${csr_san:+-addext} ${csr_san} \
+            -out "${csr_outfile}" \
+        2>/dev/null
+        ret=$?
+    fi
+
+    return ${ret}
+} # create_request
+
+
+# Sign a request with the nano CA pointed to by $1. $2 is the name of the CA,
+# $3 is the CSR and $4 the path to the resulting certificate file
+function sign_request() {
+    local ca_dir="$1"
+    local ca_name="$2"
+    local in_csr="$3"
+    local out_crt="$4"
+    local private_csr=""
+    local cert_days="${CERT_DAYS_DEFAULT}"
+
+    local ca_key_file="${ca_dir}/private/${ca_name}.key"
+    local ca_cert_file="${ca_dir}/public/${ca_name}.crt"
+
+    # Verify input file
+    if [[ ! -f "${in_csr}" || "${in_csr##*.}" != "csr" ]] ; then
+        echo "Error: CSR '${in_csr}' does not exist or has wrong file ending." >&2
+        return 1
+    fi
+
+    if ! ${OPENSSL} req -verify -noout -in "${in_csr}" 2>/dev/null ; then
+        echo "Error: File '${in_csr}' is not a valid CSR. " >&2
+        return 1
+    fi
+
+    # Create default out file name if not given
+    if [[ -z "${out_crt}" ]] ; then
+        out_crt="${in_csr%.csr}.crt"
+    fi
+
+    # Ask for confirmation for the signing
+    if ! yesanswer "No" "Create signed certificate '${out_crt}' from request '${in_csr}'" ; then
+        return 1
+    fi
+
+    # Check if out file exsist and if it does, ask for confirmation to overwrite
+    if [[ -f "${out_crt}" ]] ; then
+        if ! yesanswer "No" "Warning: '${out_crt}' alreade exist. Overwrite" ; then
+            return 1
+        fi
+    fi
+
+    # Some config to openssl must be given in the config file
+    openssl_cfg="$(mktemp -q "${ca_dir}/nanoca-tmp-XXXXXX.cfg")"
+    if [[ -f "${openssl_cfg}" ]] ; then
+        cat <<- EOF > "${openssl_cfg}"
+	# Temporary file that should not be lying around here.
+	# Can be safely removed if found.
+	[nanoca]
+	database        = ${ca_dir}/private/crtdb
+	serial          = ${ca_dir}/private/crtserial
+	new_certs_dir   = ${ca_dir}/crts
+	unique_subject  = no
+	copy_extensions = copy
+	#email_in_dn     = no
+	policy          = nanoca_policy
+	x509_extensions = nanoca_x509_extensions
+	
+	[nanoca_policy]
+	countryName            = optional
+	stateOrProvinceName    = optional
+	localityName           = optional
+	organizationName       = optional
+	organizationalUnitName = optional
+	commonName             = supplied
+	emailAddress           = optional
+	
+	[nanoca_x509_extensions]
+	basicConstraints       = CA:FALSE
+	subjectKeyIdentifier   = hash
+	#authorityKeyIdentifier = keyid,issuer:always
+	authorityKeyIdentifier = keyid:always
+	EOF
+    else
+        echo "Error: Unable to create temporary config file." >&2
+        return 1
+    fi
+
+    # Save the CSR
+    private_csr="${ca_dir}/csrs/$(cat private/crtserial).csr"
+    cp "${in_csr}" "${private_csr}"
+
+    ${OPENSSL} ca \
+        -config "${openssl_cfg}" \
+        -name "nanoca" \
+        -keyfile "${ca_key_file}" \
+        -cert "${ca_cert_file}" \
+        -days ${cert_days} \
+        -md sha256 \
+        -utf8 \
+        -notext \
+        -batch \
+        -in "${in_csr}" \
+        -out "${out_crt}" \
+    2>/dev/null
+    ret=$?
+
+    if [[ $ret -ne 0 ]] ; then
+        # Unsuccessfull signing. Remove the saved CSR
+        rm -f "${private_csr}"
+        echo "Error: Failed to create new certificate." >&2
+    else
+        echo "Certificate successfully created."
+    fi
+
+    return ${ret}
+} # sign_request
+
+
+# Revoke a certificate by serial number
+function revoke_cert() {
+    local ca_dir="$1"
+    local ca_name="$2"
+    local serial="$3"
+    local ca_key_file="${ca_dir}/private/${ca_name}.key"
+    local ca_cert_file="${ca_dir}/public/${ca_name}.crt"
+    local cert_file="${ca_dir}/crts/${serial}.pem"
+
+    if [[ ! -f "${cert_file}" ]] ; then
+        echo "Error: Certificate with serial ${serial} does not exist." >&2
+        return 1
+    fi
+
+    # Some config to openssl must be given in the config file
+    openssl_cfg="$(mktemp -q "${ca_dir}/nanoca-tmp-XXXXXX.cfg")"
+    if [[ -f "${openssl_cfg}" ]] ; then
+        cat <<- EOF > "${openssl_cfg}"
+	# Temporary file that should not be lying around here.
+	# Can be safely removed if found.
+	[nanoca]
+	database  = ${ca_dir}/private/crtdb
+	EOF
+    else
+        echo "Error: Unable to create temporary config file." >&2
+        return 1
+    fi
+
+    ${OPENSSL} ca \
+        -config "${openssl_cfg}" \
+        -name "nanoca" \
+        -revoke "${cert_file}" \
+        -keyfile "${ca_key_file}" \
+        -cert "${ca_cert_file}" \
+        -md sha256 \
+        -crl_reason superseded \
+    2>/dev/null
+    ret=$?
+
+    if [[ $ret -ne 0 ]] ; then
+        # Unsuccessfull revoke
+        echo "Error: Failed to revoke certificate with serial ${serial}." >&2
+    else
+        echo "Certificate with serial ${serial} revoked."
+    fi
+
+    return ${ret}
+} # revoke_cert
+
+
+function recreate_crl() {
+    local ca_dir="$1"
+    local ca_name="$2"
+    local ca_key_file="${ca_dir}/private/${ca_name}.key"
+    local ca_cert_file="${ca_dir}/public/${ca_name}.crt"
+    local ca_crl_file="${ca_dir}/public/${ca_name}.crl"
+    local crl_days="${CRL_DAYS_DEFAULT}"
+
+    # TODO: Add support for asking for crl_days
+
+    # Some config to openssl must be given in the config file
+    openssl_cfg="$(mktemp -q "${ca_dir}/nanoca-tmp-XXXXXX.cfg")"
+    if [[ -f "${openssl_cfg}" ]] ; then
+        cat <<- EOF > "${openssl_cfg}"
+	# Temporary file that should not be lying around here.
+	# Can be safely removed if found.
+	[nanoca]
+	database  = ${ca_dir}/private/crtdb
+	crlnumber = ${ca_dir}/private/crlserial
+	crl_extensions = nanoca_crl_extensions
+	
+	[nanoca_crl_extensions]
+	# CRL extensions. Only issuerAltName and authorityKeyIdentifier
+	# make any sense in a CRL.
+	#issuerAltName = issuer:copy
+	#authorityKeyIdentifier = keyid:always,issuer:always
+	authorityKeyIdentifier = keyid:always
+	EOF
+    else
+        echo "Error: Unable to create temporary config file." >&2
+        return 1
+    fi
+
+    ${OPENSSL} ca \
+        -config "${openssl_cfg}" \
+        -name "nanoca" \
+        -keyfile "${ca_key_file}" \
+        -cert "${ca_cert_file}" \
+        -md sha256 \
+        -gencrl \
+        -out "${ca_crl_file}" \
+        -crldays ${crl_days} \
+    2>/dev/null
+    ret=$?
+
+    if [[ $ret -ne 0 ]] ; then
+        # Unsuccessfull revoke
+        echo "Error: Failed to refresh CRL." >&2
+    else
+        echo "CRL refreshed."
+    fi
+
+    return ${ret}
+} # recreate_crl
+
+
+# List all certificates that the CA has signed
+function list_certs() {
+    local ca_dir="$1"
+    local ca_name="$2"
+
+    echo -e "State  Expiry Date    Revocation Date,Reason    Serial  Subject"
+    ${AWK} -F"\t" '{ printf "%-6s %-14s %-25s %-7s %s\n", $1, $2, $3, $4, $6 }' "${ca_dir}/private/crtdb"
+
+    return 0
+} # list_certs
+
+
+function print_usage() {
+    cat <<- EOF
+	Usage: ${BASENAME} [OPTIONS ...] COMMAND ...
+	
+	${BASENAME} is a simple openssl based X.509 CA using files on disk. It can
+	create and sign signing requests and create a CRL with revoked certificates.
+	Multiple CAs can easily be creaded and are completely represented by files
+	in user specified directories, one per CA. Se available commands below.
+	
+	Commands:
+	  req KEY CSR        - Create a new Certificate Signing Request. The request
+	                       will use the PEM encoded key file pointed to by KEY.
+	                       If the file does not exist, a new key will be created
+	                       and writen to the file pointed to by KEY. CSR should
+	                       be a path to where the request will be written.
+	                       Request parameters will will be asked for
+	                       interactively.
+	                       Note: This command does not require a previously setup
+	                       CA and can be run from any working directory.
+	  sign CSR [CRT]     - Create a new certificate by signing the signing
+	                       request pointed to by CSR. CSR must be a path to a
+	                       PEM encoded file containing the CSR and must end with
+	                       '.csr'. CRT is the path to where the new certificate
+	                       will be written. If left out, defaults to CSR but
+	                       with the '.csr' extension replaced with '.crt'.
+	  re-sign SERIAL CRT - Create a new certificate by signing a previous
+	                       signing request re-using the CSR that is cached inside
+	                       the CA. SERIAL must be the serial number for an
+	                       existing certificate and CRT the path to where the new
+	                       certificate will be written. Use the list command to
+	                       see available certificates and their serial numbers.
+	  revoke SERIAL      - Revoke a previously created certificate. SERIAL must
+	                       be the serial number for an existing certificate.
+	                       Use the list command to se available certificates and
+	                       their serial numbers.
+	                       Note: The CRL will not be updated. The recreate-crl
+	                       command need to be run to generate a new CRL.
+	  recreate-crl       - Recreate the CRL. Must be used regulary since a CRL
+	                       has a limited lifespan. If CRLs for the CA is to be
+	                       used, this command must be run at even intervals and
+	                       the new CRL to be distributed to everyone using the
+	                       CA.
+	  list               - List certificates that the CA has created.
+	  create             - Create a new CA in the current working directory
+	                       (or in CADIR given by the --dir option). Configuration
+	                       will be asked for interactively.
+	
+	Options:
+	  -h, --help         Show this help and then exit
+	  -v, --version      Print version and then exit
+	  -d, --dir=CADIR    Path to where the CA resides. Defaults to current
+	                     working directory if not given
+	
+	Examples:
+	  Create a new key and CSR in /tmp/mycert.key and /tmp/mycert.csr:
+	      $ ${BASENAME} req /tmp/mycert.key and /tmp/mycert.csr
+	
+	  Sign the CSR /tmp/mycert.csr and write the cert to /tmp/mycert.crt:
+	      $ ${BASENAME} --dir=my_ca sign /tmp/mycert.csr /tmp/mycert.crt
+	
+	  List certificates that the CA has signed:
+	      $ cd my_ca
+	      $ ${BASENAME} list
+	
+	  Revoke certificate with serial numer 05:
+	      $ cd my_ca
+	      $ ${BASENAME} revoke 05
+	
+	  Create a new CA:
+	      $ mkdir my_ca
+	      $ cd my_ca
+	      $ ${BASENAME} create
+	
+	EOF
+} # print_usage
+
+
+# Main program starts here.
+
+# Instal exit handler (used to clean up any temporary file created)
+trap exit_cleanup EXIT
+
+# Initialize variables
+ca_path="${CA_PATH_DEFAULT}"
+
+# Read general options
+while [[ "$1" != "" ]] ; do
+    case "$1" in
+        -h|--help)
+            print_usage
+            exit 0
+            ;;
+
+        -v|--version)
+            echo "${VERSION}"
+            exit 0
+            ;;
+
+        -d) shift
+            ca_path="$1"
+            ;;
+        --dir=*)
+            ca_path="${1#*=}"
+            ;;
+
+        *)
+            break
+            ;;
+    esac
+    shift
+done
+
+if [[ -z "$@" ]] ; then
+    echo "Error: No command given." >&2
+    exit 1
+fi
+
+command="$1"
+shift
+
+if [[ "${command}" == "create" ]] ; then
+    create_ca "${ca_path}" $@
+    exit $?
+fi
+
+if [[ "${command}" == "req" ]] ; then
+    create_request $@
+    exit $?
+fi
+
+# Verify that ca_path points to a valid CA and extract the CA name
+ca_name=$(get_ca_name "${ca_path}")
+if [[ -z "${ca_name}" ]] ; then
+    echo "Error: ${ca_path} does not point to a valid CA." >&2
+    exit 1
+fi
+
+ret=0
+case "${command}" in
+    sign)
+        sign_request "${ca_path}" "${ca_name}" $@
+        ret=$?
+        ;;
+    list)
+        list_certs "${ca_path}" "${ca_name}" $@
+        ret=$?
+        ;;
+    revoke)
+        revoke_cert "${ca_path}" "${ca_name}" $@
+        ret=$?
+        ;;
+    recreate-crl)
+        recreate_crl "${ca_path}" "${ca_name}" $@
+        ret=$?
+        ;;
+    *)
+        echo "Error: Unknown command: ${command}" >&2
+        ret=1
+        ;;
+esac
+
+exit ${ret}
+
