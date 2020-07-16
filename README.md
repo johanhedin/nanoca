@@ -23,6 +23,10 @@ command, for example list certificates that the CA has created:
     $ cd myca
     $ nanoca list
 
+For instructions how to use `nanoca`, use `--help`:
+
+    $ nanoca --help
+
 
 Some terminology
 ====
