@@ -24,6 +24,20 @@ command, for example list certificates that the CA has created:
     $ nanoca list
 
 
+Some terminology
+====
+* CA - Certificate Authority.
+* CSR - Certificate Signing Request.
+* CRL - Certificate Revokation List.
+* Signing - The process where a CA creates a new certificate by signing a CSR.
+* Revoking - The process where a CA marks a previously created certificate as revoked (CA intenal operation).
+
+
+X.509 References
+====
+* [RFC 5280](https://tools.ietf.org/html/rfc5280)
+
+
 Requirements
 ====
 `nanoca` is written in bash and uses openssl, awk, ls and wc. It is tested on
