@@ -1,6 +1,6 @@
 nanoca
 ====
-nanoca is a script that implement functions for a small file based X.509
+`nanoca` is a script that implement functions for a small file based X.509
 Certificate Authority, CA.
 
 It can create new CAs, create CSRs, sign CSRs, revoke certificates and create
@@ -26,6 +26,6 @@ command, for example list certificates that the CA has created:
 
 Requirements
 ====
-nanoca is written in bash and uses openssl, awk, ls and wc. It is tested on
+`nanoca` is written in bash and uses openssl, awk, ls and wc. It is tested on
 CentOS 6, 7, and 8, Fedora 32 and Rasbian Buster but should run on almost any
 Linux distribution that has openssl available.
