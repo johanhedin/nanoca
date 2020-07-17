@@ -446,6 +446,8 @@ function create_request() {
         read -e -i "${csr_ou}"    -p "Organazational Unit, OU: " csr_ou
         read -e -i "${csr_gn}"    -p "Fist/Given name, GN: " csr_gn
         read -e -i "${csr_sn}"    -p "Last/Family name, SN: " csr_sn
+        [[ -n "${csr_sn}" ]] && csr_cn="${csr_sn}"
+        [[ -n "${csr_gn}" ]] && csr_cn="${csr_gn}${csr_cn:+ }${csr_cn}"
         read -e -i "${csr_cn}"    -p "Common Name, CN: " csr_cn
 
         # Verify that the CN is not empty
@@ -463,7 +465,9 @@ function create_request() {
             fi
         fi
 
-        read -e -i "${csr_uid}"   -p "Userid, UID: " csr_uid
+        read -e -i "${csr_uid}"   -p "Username (Unix username), UID: " csr_uid
+
+        # TODO: Add validation for the UID
 
         csr_eku="${csr_eku}${csr_eku:+,}clientAuth"
     fi
