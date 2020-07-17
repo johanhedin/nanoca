@@ -22,7 +22,7 @@
 # Requires bash >= 4, openssl >= ?, awk, ls and wc.
 #
 # Created: 2020-07-10
-# Updated: 2020-07-16
+# Updated: 2020-07-17
 #
 # TODO:
 #  - Take care of stderr from openssl and print that on error
@@ -33,7 +33,7 @@
 #
 
 # Basic constants
-VERSION="1.0.0"
+VERSION="1.1.0"
 BASENAME="$(basename $0)"
 OPENSSL="/usr/bin/openssl"
 AWK="/usr/bin/awk"
@@ -113,6 +113,31 @@ function yesanswer() {
 
     return ${return_value}
 } # yesanswer
+
+
+# Function for choosing a single word/number value from a list of valid
+# values
+# $1        - Prompt
+# $2        - Default value
+# $3 ... $n - Space separated list of valid values
+function choose_value() {
+    local prompt="$1"
+    shift
+    local default_value="$1"
+    shift
+    local values=("$@")
+    local value=""
+    local invalid_str=""
+
+    while [[ ! " ${values[@]} " =~ " ${value} " ]] ; do
+        read -e -p "${invalid_str}${prompt} (${default_value}): " value
+        [[ -z "${value}" ]] && value="${default_value}"
+        invalid_str="Invalid choise. "
+    done
+
+    echo "${value}"
+    return 0
+} # choose_value
 
 
 # Function to build a prefixed SAN string. Example:
@@ -317,6 +342,10 @@ function create_request() {
     local csr_o=""
     local csr_ou=""
     local csr_cn=""
+    local csr_email=""
+    local csr_uid=""
+    local csr_gn=""
+    local csr_sn=""
     local csr_subject=""
     local csr_ku=""
     local csr_eku=""
@@ -354,47 +383,95 @@ function create_request() {
     # a personal. If personal, the Subject should include given name, last
     # name and so on. And a question about e-mail address should be asked (
     # and put in the SAN).
+    echo "Choose request type:"
+    echo "  1 - Request for machine certificate"
+    echo "  2 - Request for personal certificate"
+    local req_type="$(choose_value 'Enter request type' '1' '1 2')"
 
-    # Collect Subject attributes from user
-    echo "Enter Subject (the CN attribute is mandatory, others can"
-    echo "be left out by entering a empty value):"
-    read -e -i "${csr_c}"  -p "ISO 3166-1 alpha-2 Country Code (C): " csr_c
-    read -e -i "${csr_st}" -p "State or Provice (ST): " csr_st
-    read -e -i "${csr_l}"  -p "Location or City (L): " csr_l
-    read -e -i "${csr_o}"  -p "Organazation (O): " csr_o
-    read -e -i "${csr_ou}" -p "Organazational Unit (OU): " csr_ou
-    read -e -i "${csr_cn}" -p "Common Name (CN): " csr_cn
+    if [[ "${req_type}" == "1" ]] ; then
+        req_type="machine"
+    else
+        req_type="personal"
+    fi
 
-    # Verify that the CN is not empty
-    if [[ -z "${csr_cn}" ]] ; then
-        echo "Error: Common Name (CN) can not be empty." >&2
-        return 1
+    if [[ "${req_type}" == "machine" ]] ; then
+        # Request for machine certificate
+        # Collect Subject attributes from user
+        echo "Enter Subject (the CN attribute is mandatory, others can"
+        echo "be left out by entering a empty value):"
+        read -e -i "${csr_c}"  -p "Country Code, C: " csr_c
+        read -e -i "${csr_st}" -p "State or Provice, ST: " csr_st
+        read -e -i "${csr_l}"  -p "Location or City, L: " csr_l
+        read -e -i "${csr_o}"  -p "Organazation, O: " csr_o
+        read -e -i "${csr_ou}" -p "Organazational Unit, OU: " csr_ou
+        read -e -i "${csr_cn}" -p "Common Name, CN: " csr_cn
+
+        # Verify that the CN is not empty
+        if [[ -z "${csr_cn}" ]] ; then
+            echo "Error: Common Name (CN) can not be empty." >&2
+            return 1
+        fi
+
+       # Get Extended Key Usage settings from the user
+        if yesanswer "Yes" "Should the cert be used for TLS server auth" ; then
+            csr_eku="${csr_eku}${csr_eku:+,}serverAuth"
+        fi
+        if yesanswer "No" "Should the cert be used for TLS client auth" ; then
+            csr_eku="${csr_eku}${csr_eku:+,}clientAuth"
+        fi
+        # TODO: Add more EKUs like codeSigning and emailProtection. But only email
+        # if user certificate
+
+        # Collect SAN from the user
+        read -e -p "Space separated list of SAN (DNS name or IPv4-address) to be added: " san_str
+
+        # If SAN are to be added, the CN must be repeted in the SAN for browsers
+        # to be happy (note: we might get the CN twice if the user adds it to the SAN
+        # manually)
+        if [[ -n ${san_str} ]] ; then
+            san_str="${csr_cn} ${san_str}"
+        fi
+
+        # Build correct SAN by prefixing the entries accordingly
+        csr_san=$(prefix_san ${san_str})
+    else
+        # Request for personal certificate
+        # Collect Subject attributes from user
+        echo "Enter Subject (the CN attribute is mandatory, others can"
+        echo "be left out by entering a empty value):"
+        read -e -i "${csr_c}"     -p "Country Code, C: " csr_c
+        read -e -i "${csr_st}"    -p "State or Provice, ST: " csr_st
+        read -e -i "${csr_l}"     -p "Location or City, L: " csr_l
+        read -e -i "${csr_o}"     -p "Organazation, O: " csr_o
+        read -e -i "${csr_ou}"    -p "Organazational Unit, OU: " csr_ou
+        read -e -i "${csr_gn}"    -p "Fist/Given name, GN: " csr_gn
+        read -e -i "${csr_sn}"    -p "Last/Family name, SN: " csr_sn
+        read -e -i "${csr_cn}"    -p "Common Name, CN: " csr_cn
+
+        # Verify that the CN is not empty
+        if [[ -z "${csr_cn}" ]] ; then
+            echo "Error: Common Name, CN, can not be empty." >&2
+            return 1
+        fi
+
+        read -e -i "${csr_email}" -p "E-mail address, E: " csr_email
+
+        if [[ -n "${csr_email}" ]] ; then
+            if yesanswer "Yes" "Should the e-mail be placed in the SAN (recommended)" ; then
+                csr_san="email:${csr_email}"
+                csr_email=""
+            fi
+        fi
+
+        read -e -i "${csr_uid}"   -p "Userid, UID: " csr_uid
+
+        csr_eku="${csr_eku}${csr_eku:+,}clientAuth"
     fi
 
     # Hard code key usage for the time being. The usage set here should work
     # for the intended certificate usages for nanoca. Se RFC 5820 chapter
     # 4.2.1.3 and 4.2.1.12 for documentation.
     csr_ku="digitalSignature,keyEncipherment"
-
-    # Get Extended Key Usage settings from the user
-    if yesanswer "Yes" "Should the cert be used for TLS server auth" ; then
-        csr_eku="${csr_eku}${csr_eku:+,}serverAuth"
-    fi
-    if yesanswer "No" "Should the cert be used for TLS client auth" ; then
-        csr_eku="${csr_eku}${csr_eku:+,}clientAuth"
-    fi
-    # TODO: Add more EKUs like codeSigning and emailProtection. But only email
-    # if user certificate
-
-    # Collect SAN from the user
-    read -e -p "Space separated list of SAN (DNS name or IPv4-address) to be added: " san_str
-
-    # If SAN are to be added, the CN must be repeted in the SAN for browsers
-    # to be happy (note: we might get the CN twice if the user adds it to the SAN
-    # manually)
-    if [[ -n ${san_str} ]] ; then
-        san_str="${csr_cn} ${san_str}"
-    fi
 
     # Ask if a newly created kes should be pass phrase protected
     if [[ ${create_keyfile} -eq 1 ]] ; then
@@ -404,18 +481,20 @@ function create_request() {
     fi
 
     # Build Subject string
-    [[ -n "${csr_c}" ]]  && csr_subject="${csr_subject}/C=${csr_c}"
-    [[ -n "${csr_st}" ]] && csr_subject="${csr_subject}/ST=${csr_st}"
-    [[ -n "${csr_l}" ]]  && csr_subject="${csr_subject}/L=${csr_l}"
-    [[ -n "${csr_o}" ]]  && csr_subject="${csr_subject}/O=${csr_o}"
-    [[ -n "${csr_ou}" ]] && csr_subject="${csr_subject}/OU=${csr_ou}"
-    csr_subject="${csr_subject}/CN=${csr_cn}"
-
-    # Build correct SAN by prefixing the entries accordingly
-    csr_san=$(prefix_san ${san_str})
+    [[ -n "${csr_c}" ]]     && csr_subject="${csr_subject}/C=${csr_c}"
+    [[ -n "${csr_st}" ]]    && csr_subject="${csr_subject}/ST=${csr_st}"
+    [[ -n "${csr_l}" ]]     && csr_subject="${csr_subject}/L=${csr_l}"
+    [[ -n "${csr_o}" ]]     && csr_subject="${csr_subject}/O=${csr_o}"
+    [[ -n "${csr_ou}" ]]    && csr_subject="${csr_subject}/OU=${csr_ou}"
+    [[ -n "${csr_gn}" ]]    && csr_subject="${csr_subject}/GN=${csr_gn}"
+    [[ -n "${csr_sn}" ]]    && csr_subject="${csr_subject}/SN=${csr_sn}"
+    [[ -n "${csr_cn}" ]]    && csr_subject="${csr_subject}/CN=${csr_cn}"
+    [[ -n "${csr_email}" ]] && csr_subject="${csr_subject}/emailAddress=${csr_email}"
+    [[ -n "${csr_uid}" ]]   && csr_subject="${csr_subject}/UID=${csr_uid}"
 
     echo ""
-    echo "You are about to create a new CSR using the following parameters:"
+    echo "You are about to create a CSR using the following parameters:"
+    echo "    Certificate type: ${req_type}"
     echo "    Output CSR file: ${csr_outfile}"
     if [[ ${create_keyfile} -eq 1 ]] ; then
         echo "    Output Key file: ${csr_keyfile}"
@@ -559,17 +638,23 @@ function sign_request() {
 	unique_subject  = no
 	copy_extensions = copy
 	#email_in_dn     = no
-	policy          = nanoca_policy
+	policy          = nanoca_copy_policy
 	x509_extensions = nanoca_x509_extensions
 	
-	[nanoca_policy]
+	[nanoca_copy_policy]
+	# If any of the following attributes are present in the subject,
+	# they will be included in the certificate. commonName is the only
+	# mandatory attribute for this policy
 	countryName            = optional
 	stateOrProvinceName    = optional
 	localityName           = optional
 	organizationName       = optional
 	organizationalUnitName = optional
+	givenName              = optional
+	surname                = optional
 	commonName             = supplied
 	emailAddress           = optional
+	UID                    = optional
 	
 	[nanoca_x509_extensions]
 	basicConstraints       = CA:FALSE

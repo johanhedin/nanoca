@@ -1,2 +1,5 @@
+* Fri Jul 17 2020 Johan Hedin - 1.1.0
+- Added support personal CSRs (ask for GN, SN, UID and E-mail)
+
 * Thu Jul 16 2020 Johan Hedin - 1.0.0
 - First release
