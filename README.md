@@ -34,7 +34,7 @@ Some terminology
 * CSR - Certificate Signing Request.
 * CRL - Certificate Revokation List.
 * Signing - The process where a CA creates a new certificate by signing a CSR.
-* Revoking - The process where a CA marks a previously created certificate as revoked (CA intenal operation).
+* Revoking - The process where a CA marks a previously created certificate as revoked (CA internal operation).
 
 
 X.509 References
