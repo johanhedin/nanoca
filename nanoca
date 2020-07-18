@@ -22,18 +22,18 @@
 # Requires bash >= 4, openssl >= ?, awk, ls and wc.
 #
 # Created: 2020-07-10
-# Updated: 2020-07-17
+# Updated: 2020-07-18
 #
 # TODO:
 #  - Take care of stderr from openssl and print that on error
-#  - Support for having the keys on a smartcard
 #  - Make sure that automatically added CN to SAN only occure once
 #  - Make it possible to give CRL days as input when creating new CRLs
 #  - Add support for creating intermediate CAs and for signing CA certs
+#  - Make sure that spaces in filenames are properly handled
 #
 
 # Basic constants
-VERSION="1.1.0"
+VERSION="1.2.0"
 BASENAME="$(basename $0)"
 OPENSSL="/usr/bin/openssl"
 AWK="/usr/bin/awk"
@@ -69,7 +69,7 @@ openssl_cfg=""
 
 # Exit hook to remove any created temporary file
 function exit_cleanup() {
-    [[ -f ${openssl_cfg} ]] && rm -f ${openssl_cfg}
+    [[ -f "${openssl_cfg}" ]] && rm -f "${openssl_cfg}"
 }
 
 
@@ -379,6 +379,11 @@ function create_request() {
         create_keyfile=0
     fi
 
+    # If the requested key file is a PKCS11 URI, do not create key file
+    if [[ "${csr_keyfile}" =~ ^pkcs11: ]] ; then
+        create_keyfile=0
+    fi
+
     # TODO: Ask the user wehter the certificate is a machine certificate or
     # a personal. If personal, the Subject should include given name, last
     # name and so on. And a question about e-mail address should be asked (
@@ -459,7 +464,7 @@ function create_request() {
         read -e -i "${csr_email}" -p "E-mail address, E: " csr_email
 
         if [[ -n "${csr_email}" ]] ; then
-            if yesanswer "Yes" "Should the e-mail be placed in the SAN (recommended)" ; then
+            if yesanswer "Yes" "Place e-mail in SAN (recommended) instead of Subject" ; then
                 csr_san="email:${csr_email}"
                 csr_email=""
             fi
@@ -475,6 +480,7 @@ function create_request() {
     # Hard code key usage for the time being. The usage set here should work
     # for the intended certificate usages for nanoca. Se RFC 5820 chapter
     # 4.2.1.3 and 4.2.1.12 for documentation.
+    # TODO: Add msSmartcardLogin?
     csr_ku="digitalSignature,keyEncipherment"
 
     # Ask if a newly created kes should be pass phrase protected
@@ -531,6 +537,7 @@ function create_request() {
     openssl_cfg=$(mktemp -q "/tmp/nanoca-tmp-XXXXXX.cfg")
     if [[ -f "${openssl_cfg}" ]] ; then
         cat <<- EOF > "${openssl_cfg}"
+	# TODO add pkcs11 engine support here if simple?!
 	# Temporary file that should not be lying around here.
 	# Can be safely removed if found.
 	[req]
@@ -567,21 +574,43 @@ function create_request() {
         2>/dev/null
         ret=$?
     else
-        ${OPENSSL} req \
-            -config "${openssl_cfg}" \
-            -new \
-            -key "${csr_keyfile}" \
-            -utf8 \
-            -sha256 \
-            -subj "${csr_subject}" \
-            -addext "basicConstraints=critical,CA:false" \
-            -addext "subjectKeyIdentifier=hash" \
-            ${csr_ku:+-addext} ${csr_ku} \
-            ${csr_eku:+-addext} ${csr_eku} \
-            ${csr_san:+-addext} ${csr_san} \
-            -out "${csr_outfile}" \
-        2>/dev/null
-        ret=$?
+        if [[ ! "${csr_keyfile}" =~ ^pkcs11: ]] ; then
+            # Key file on disk
+            ${OPENSSL} req \
+                -config "${openssl_cfg}" \
+                -new \
+                -key "${csr_keyfile}" \
+                -utf8 \
+                -sha256 \
+                -subj "${csr_subject}" \
+                -addext "basicConstraints=critical,CA:false" \
+                -addext "subjectKeyIdentifier=hash" \
+                ${csr_ku:+-addext} ${csr_ku} \
+                ${csr_eku:+-addext} ${csr_eku} \
+                ${csr_san:+-addext} ${csr_san} \
+                -out "${csr_outfile}" \
+            2>/dev/null
+            ret=$?
+        else
+            # Key on PKCS11 device
+            ${OPENSSL} req \
+                -config "${openssl_cfg}" \
+                -engine pkcs11 \
+                -keyform engine \
+                -new \
+                -key "${csr_keyfile}" \
+                -utf8 \
+                -sha256 \
+                -subj "${csr_subject}" \
+                -addext "basicConstraints=critical,CA:false" \
+                -addext "subjectKeyIdentifier=hash" \
+                ${csr_ku:+-addext} ${csr_ku} \
+                ${csr_eku:+-addext} ${csr_eku} \
+                ${csr_san:+-addext} ${csr_san} \
+                -out "${csr_outfile}" \
+            2>/dev/null
+            ret=$?
+        fi
     fi
 
     return ${ret}
@@ -835,10 +864,18 @@ function print_usage() {
 	                       If the file does not exist, a new key will be created
 	                       and writen to the file pointed to by KEY. CSR should
 	                       be a path to where the request will be written.
+	                       The KEY argument can also be a PKCS11 URI pointing
+	                       to a key on a hardware device like a smartcard. If
+	                       you only have one smartcard inserted in the computer,
+	                       the string "pkcs11:" is sufficent.
 	                       Request parameters will will be asked for
 	                       interactively.
-	                       Note: This command does not require a previously setup
-	                       CA and can be run from any working directory.
+	                       Note 1: This command does not require a previously
+	                       setup CA and can be run from any working directory.
+	                       Note 2: Smartcard support requires that openssl
+	                       has support for engine and that the openssl pkcs11
+	                       engine is installed. You also need a properly setup
+	                       smartcard.
 	  sign CSR [CRT]     - Create a new certificate by signing the signing
 	                       request pointed to by CSR. CSR must be a path to a
 	                       PEM encoded file containing the CSR and must end with

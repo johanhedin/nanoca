@@ -1,3 +1,6 @@
+* Xxx Yyy Zz 2020 Johan Hedin - 1.2.0
+- Support for key via PKCS11 URI (typically smartcard) when creating CSR
+
 * Fri Jul 17 2020 Johan Hedin - 1.1.0
 - Added support personal CSRs (ask for GN, SN, UID and E-mail)
 
