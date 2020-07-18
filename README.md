@@ -5,7 +5,7 @@ Certificate Authority, CA, that can be used on a home or private network.
 
 It can create new CAs, create CSRs, sign CSRs, revoke certificates and create
 CRLs. It has support for creating CSRs using PKCS11 enabled hardware tokens
-(like smartcards) if the underlying openssl installation has support for
+(like smartcards) if the underlying `openssl` installation has support for
 pkcs11_engine.
 
 A CA is represented by files in a directory and creating a new CA is as simple
@@ -51,5 +51,5 @@ X.509 related references
 Requirements
 ====
 `nanoca` is written in bash and uses `openssl`, `awk`, `ls` and `wc`. It has
-been testen tested on CentOS 6, 7, and 8, Fedora 32 and Rasbian Buster but
-should run on almost any recent Linux distribution that has `openssl` available.
+been tested on Fedora 32 and Rasbian Buster but should run on almost any
+recent Linux distribution that has `openssl >= 1.1.1`.
