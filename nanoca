@@ -33,7 +33,7 @@
 #
 
 # Basic constants
-VERSION="1.2.0"
+VERSION="1.2.99rc1"
 BASENAME="$(basename $0)"
 OPENSSL="/usr/bin/openssl"
 AWK="/usr/bin/awk"
@@ -343,6 +343,7 @@ function create_request() {
     local csr_ou=""
     local csr_cn=""
     local csr_email=""
+    local csr_msupn=""
     local csr_uid=""
     local csr_gn=""
     local csr_sn=""
@@ -465,9 +466,15 @@ function create_request() {
 
         if [[ -n "${csr_email}" ]] ; then
             if yesanswer "Yes" "Place e-mail in SAN (recommended) instead of Subject" ; then
-                csr_san="email:${csr_email}"
+                csr_san="${csr_san}${csr_san:+,}email:${csr_email}"
                 csr_email=""
             fi
+        fi
+
+        read -e -i "${csr_msupn}" -p "Microfoft User Principal Name, UPN: " csr_msupn
+        if [[ -n "${csr_msupn}" ]] ; then
+            csr_san="${csr_san}${csr_san:+,}otherName:msUPN;UTF8:${csr_msupn}"
+            csr_eku="${csr_eku}${csr_eku:+,}msSmartcardLogin"
         fi
 
         read -e -i "${csr_uid}"   -p "Username (Unix username), UID: " csr_uid
