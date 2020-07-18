@@ -1,4 +1,4 @@
-* Xxx Yyy Zz 2020 Johan Hedin - 1.2.0
+* Sat Jul 18 2020 Johan Hedin - 1.2.0
 - Support for key via PKCS11 URI (typically smartcard) when creating CSR
 
 * Fri Jul 17 2020 Johan Hedin - 1.1.0
