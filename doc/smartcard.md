@@ -1,15 +1,15 @@
-nanoca with Smartcard
+nanoca with smart card
 ====
-`nanoca` can create CSRs using RSA keys on Smartcards. This document is a short
+`nanoca` can create CSRs using RSA keys on smart cards. This document is a short
 instruction how to provision a `nanoca` signed certificate on a
-[Aventra](https://aventra.fi) MyEID Smartcard using Fedora 32.
+[Aventra](https://aventra.fi) MyEID smart card using Fedora 33.
 
 The instruction is mainly based on the two following OpenSC Wiki pages:
 
 * https://github.com/OpenSC/OpenSC/wiki/Aventra-MyEID-PKI-card
 * https://github.com/OpenSC/OpenSC/wiki/Card-personalization
 
-Note that the instruction below only cover the simple case with one objet
+Note that the instruction below only cover the simple case with one object
 (key/certificate pair) on the token and with only one PIN. More advanced
 use cases like multiple PINs, multiple keys and/or multiple certificates are
 outside the scope.
@@ -17,14 +17,14 @@ outside the scope.
 
 Prerequisites
 ====
-* Aventra MyEID Smartcard. Can be ordered from their [webshop](https://aventra.fi/webshop).
-* Supported Smartcard reader.
-* Running Fedora 32 installation.
+* Aventra MyEID smart card. Can be ordered from their [web shop](https://aventra.fi/webshop).
+* Supported smart card reader.
+* Running Fedora 33 installation.
 
 
 Software
 ====
-OpenSC and pcsc-lite need to be installed (they are most likley already
+OpenSC and pcsc-lite need to be installed (they are most likely already
 installed on your system):
 
     $ sudo dnf install opensc pcsc-lite
@@ -42,22 +42,22 @@ Setup a `nanoca` CA (or use an existing one):
     $ nanoca create
 
 
-Initialize the Smartcard
+Initialize the smart card
 ====
-This first step is to initialize the Smartcard and prepare it for key generation
-and certificate provisioning. When it comes to smartcards, it is common to talk
+The first step is to initialize the smart card and prepare it for key generation
+and certificate provisioning. When it comes to smart cards, it is common to talk
 about two "roles", "User" and "Security Officer" (or SO for short). The User is
-the one using the Smartcard and the SO is the one verifying parts of the
+the one using the smart card and the SO is the one verifying parts of the
 provisioning process.
 
-The User and SO has different PIN codes.
+The User and SO has different PIN and PUK codes.
 
 So, to start with, come up with one User PIN and corresponding unlock code, PUK
 and one SO PIN and corresponding PUK. Write them down somewhere safe or be
 confident that you remember them.
 
 If you loose the SO PIN, you will not be able to wipe the card and start over
-or provision new PINs (basically making a brick out of the card).
+or provision new PINs (basically bricking the the card).
 
 Insert the card into the card reader and make sure that only one card is
 active on your computer. Run the following:
@@ -66,16 +66,16 @@ active on your computer. Run the following:
 
 Even though no User PIN and PUK are created at this stage, they need to be given
 as arguments. If not, `pkcs15-init` will ask for PIN indefinitely. The values
-given here are not used and can be watever.
+given here are not used and can be whatever.
 
 You will be asked to enter the SO PIN and SO PUK that should be used for the
 card. Enter the values that you came up with previously (note that the wording
-for the PUK prompt is a bit missleading and talk about User PIN, but it is the
+for the SO PUK prompt is a bit misleading and talk about "User", but it is the
 SO PUK that is requested).
 
-The next step is to create the User PIN (and PUK). For Smartcards, the PIN is
+The next step is to create the User PIN (and PUK). For smart cards, the PIN is
 considered it's own "object". You create a "PIN" and then references that
-PIN when creating key and/or certifiacte objects. A PIN object is referenced
+PIN when creating key and/or certificate objects. A PIN object is referenced
 by a so called "auth id" and we will create auth id 1 here:
 
     $ pkcs15-init --store-pin --auth-id 1
@@ -98,9 +98,9 @@ Create a RSA key on the card
 ====
 To create a new RSA key object on the card run the following command:
 
-    $ pkcs15-init --generate-key "rsa:2048" --auth-id 1 --public-key-label "My Name"
+    $ pkcs15-init --generate-key "rsa:2048" --key-usage digitalSignature,keyEncipherment --auth-id 1 --public-key-label "My Name"
 
-Replace "My Name" with the name you intend to use as Comman Name later on
+Replace "My Name" with the name you intend to use as Common Name later on
 in the certificate. There is no need for them to match, but it makes everything
 much more clear if they do. The `--auth-id 1` argument will tie this key to the
 one and only User PIN object that was created in the initialization step.
@@ -114,7 +114,7 @@ Note that the actual private key is never printed, just information about it.
 
 Create CSR and signed certificate with nanoca
 ====
-You can now create a CSR using the key on the Smartcard. Given that only
+You can now create a CSR using the key on the smart card. Given that only
 one key is on the card and that only one card inserted, it is enough to reference
 the key with "pkcs11:" (note the : at the end). Use nanoca like this:
 
@@ -129,12 +129,12 @@ it:
 
     $ openssl req -noout -text -in /tmp/my_name.csr
 
-Now, create the certifiacte by signing the CSR:
+Now, create the certificate by signing the CSR in the CA:
 
     $ cd smartcard_ca
     $ nanoca sign /tmp/my_name.csr /tmp/my_name.crt
 
-You can look at the certificate with `openssl` with the `x509` command:
+You can inspect the newly created certificate with `openssl` with the `x509` command:
 
     $ openssl x509 -noout -text -in /tmp/my_name.crt
 
@@ -142,7 +142,7 @@ You now have a signed certificate. The next step is to put it into the card.
 The file `/tmp/my_name.csr` is not needed any more and can be removed.
 
 
-Write certificate to the Smartcard
+Write certificate to the smart card
 ====
 The final step is to write your certificate into the card:
 
@@ -153,12 +153,12 @@ will be asked for the User PIN to complete the operation. When completed
 without errors, the file `/tmp/my_name.crt` is not needed any more and can be
 removed.
 
-The certificate and key on the card can now be listed with:
+The certificate and key on the card can be listed with:
 
     $ pkcs15-tool --list-keys --list-public-keys --list-certificates
 
 Note that the IDs are all the same for the objects. This is expected because
-they all belong togehter.
+they all belong together.
 
 
 Remove certificate and key from the card
@@ -174,16 +174,16 @@ Note the ID for the object you want to remove and then run:
     $ pkcs15-init --delete-objects pubkey --id <ID from above>
     $ pkcs15-init --delete-objects privkey --id <ID from above>
 
-The card is now empty of certificates and keys and you can start all over
-again and create a new key.
+The card is now empty of certificates and keys and you can start over and
+create a new key.
 
 
 Erase the card
 ====
-It is possible to totally erase the card to start over. This is a handy feature
-when experimenting with Smartcards. Run the following command:
+It is possible to totally erase the card to start over from scratch. This is
+handy when experimenting with smart cards. Run the following command:
 
     $ pkcs15-init --erase-card
 
-You will be asked for the SO PIN to preform the erase. If you have lost is, the
+You will be asked for the SO PIN to preform the erase. If you have lost it, the
 card is "lost" to.

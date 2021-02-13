@@ -22,18 +22,18 @@
 # Requires bash >= 4, openssl >= 1.1.1, awk, ls and wc.
 #
 # Created: 2020-07-10
-# Updated: 2020-07-18
+# Updated: 2021-02-13
 #
 # TODO:
 #  - Take care of stderr from openssl and print that on error
-#  - Make sure that automatically added CN to SAN only occure once
+#  - Make sure that automatically added CN to SAN only occur once
 #  - Make it possible to give CRL days as input when creating new CRLs
 #  - Add support for creating intermediate CAs and for signing CA certs
-#  - Make sure that spaces in filenames are properly handled
+#  - Make sure that spaces in file names are properly handled
 #
 
 # Basic constants
-VERSION="1.2.99rc1"
+VERSION="1.2.99rc2"
 BASENAME="$(basename $0)"
 OPENSSL="/usr/bin/openssl"
 AWK="/usr/bin/awk"
@@ -132,7 +132,7 @@ function choose_value() {
     while [[ ! " ${values[@]} " =~ " ${value} " ]] ; do
         read -e -p "${invalid_str}${prompt} (${default_value}): " value
         [[ -z "${value}" ]] && value="${default_value}"
-        invalid_str="Invalid choise. "
+        invalid_str="Invalid choice "
     done
 
     echo "${value}"
@@ -224,14 +224,14 @@ function create_ca() {
     echo "Enter CA Subject (the CN attribute is mandatory, others can be left out"
     echo "by entering a empty value):"
     read -e -i "${ca_c}"  -p "ISO 3166-1 alpha-2 Country Code (C): " ca_c
-    read -e -i "${ca_st}" -p "State or Provice (ST): " ca_st
+    read -e -i "${ca_st}" -p "State or Province (ST): " ca_st
     read -e -i "${ca_l}"  -p "Location or City (L): " ca_l
-    read -e -i "${ca_o}"  -p "Organazation (O): " ca_o
-    read -e -i "${ca_ou}" -p "Organazational Unit (OU): " ca_ou
+    read -e -i "${ca_o}"  -p "Organization (O): " ca_o
+    read -e -i "${ca_ou}" -p "Organizational Unit (OU): " ca_ou
     read -e -i "${ca_cn}" -p "Common Name (CN): " ca_cn
 
     # We have some strict requirements on the CN attribute since
-    # it is used in the filenames for the CA certificate and key
+    # it is used in the file names for the CA certificate and key
     if [[ -z "${ca_cn}" || ! "${ca_cn}" =~ ^[a-zA-Z0-9\ \-]+$ ]] ; then
         echo "Error: Common Name for the CA must be non-empty and must satisfy ^[a-zA-Z0-9 -]\$." >&2
         return 1
@@ -273,8 +273,8 @@ function create_ca() {
     # The database file (private/index) has a six field TAB separated layout
     # with the following fields:
     #   State  - E, R, V for Expired, Revoked and Validated
-    #   Exparation datetime
-    #   Revokation datetime and reason (only set for type R entires)
+    #   Expiration datetime
+    #   Revocation datetime and reason (only set for type R entires)
     #   Serial
     #   File name of certificate. Always "unknown"
     #   Certificate subject name
@@ -358,7 +358,7 @@ function create_request() {
     local create_keyfile=1
     local keyfile_pw_protected="${CERT_KEY_PW_PROTECTED_DEAFULT}"
 
-    # Verify that the requested keyfile does not point to a directory
+    # Verify that the requested key file does not point to a directory
     if [[ "${csr_keyfile}" == "" || \
           "${csr_keyfile}" == "." || \
           "${csr_keyfile}" == ".."  || -d "${csr_keyfile}" ]] ; then
@@ -366,7 +366,7 @@ function create_request() {
         return 1
     fi
 
-    # Verify that the requested outfile does not point to a directory
+    # Verify that the requested out file does not point to a directory
     if [[ "${csr_outfile}" == "" || \
           "${csr_outfile}" == "." || \
           "${csr_outfile}" == ".." || -d "${csr_outfile}" ]] ; then
@@ -385,7 +385,7 @@ function create_request() {
         create_keyfile=0
     fi
 
-    # TODO: Ask the user wehter the certificate is a machine certificate or
+    # TODO: Ask the user if the certificate is a machine certificate or
     # a personal. If personal, the Subject should include given name, last
     # name and so on. And a question about e-mail address should be asked (
     # and put in the SAN).
@@ -406,10 +406,10 @@ function create_request() {
         echo "Enter Subject (the CN attribute is mandatory, others can"
         echo "be left out by entering a empty value):"
         read -e -i "${csr_c}"  -p "Country Code, C: " csr_c
-        read -e -i "${csr_st}" -p "State or Provice, ST: " csr_st
+        read -e -i "${csr_st}" -p "State or Province, ST: " csr_st
         read -e -i "${csr_l}"  -p "Location or City, L: " csr_l
-        read -e -i "${csr_o}"  -p "Organazation, O: " csr_o
-        read -e -i "${csr_ou}" -p "Organazational Unit, OU: " csr_ou
+        read -e -i "${csr_o}"  -p "Organization, O: " csr_o
+        read -e -i "${csr_ou}" -p "Organizational Unit, OU: " csr_ou
         read -e -i "${csr_cn}" -p "Common Name, CN: " csr_cn
 
         # Verify that the CN is not empty
@@ -448,8 +448,8 @@ function create_request() {
         read -e -i "${csr_c}"     -p "Country Code, C: " csr_c
         read -e -i "${csr_st}"    -p "State or Provice, ST: " csr_st
         read -e -i "${csr_l}"     -p "Location or City, L: " csr_l
-        read -e -i "${csr_o}"     -p "Organazation, O: " csr_o
-        read -e -i "${csr_ou}"    -p "Organazational Unit, OU: " csr_ou
+        read -e -i "${csr_o}"     -p "Organization, O: " csr_o
+        read -e -i "${csr_ou}"    -p "Organizational Unit, OU: " csr_ou
         read -e -i "${csr_gn}"    -p "Fist/Given name, GN: " csr_gn
         read -e -i "${csr_sn}"    -p "Last/Family name, SN: " csr_sn
         [[ -n "${csr_sn}" ]] && csr_cn="${csr_sn}"
@@ -658,9 +658,9 @@ function sign_request() {
         return 1
     fi
 
-    # Check if out file exsist and if it does, ask for confirmation to overwrite
+    # Check if out file exist and if it does, ask for confirmation to overwrite
     if [[ -f "${out_crt}" ]] ; then
-        if ! yesanswer "No" "Warning: '${out_crt}' alreade exist. Overwrite" ; then
+        if ! yesanswer "No" "Warning: '${out_crt}' already exist. Overwrite" ; then
             return 1
         fi
     fi
@@ -727,7 +727,7 @@ function sign_request() {
     ret=$?
 
     if [[ $ret -ne 0 ]] ; then
-        # Unsuccessfull signing. Remove the saved CSR
+        # Unsuccessful signing. Remove the saved CSR
         rm -f "${private_csr}"
         echo "Error: Failed to create new certificate." >&2
     else
@@ -778,7 +778,7 @@ function revoke_cert() {
     ret=$?
 
     if [[ $ret -ne 0 ]] ; then
-        # Unsuccessfull revoke
+        # Unsuccessful revoke
         echo "Error: Failed to revoke certificate with serial ${serial}." >&2
     else
         echo "Certificate with serial ${serial} revoked."
@@ -869,20 +869,20 @@ function print_usage() {
 	  req KEY CSR        - Create a new Certificate Signing Request. The request
 	                       will use the PEM encoded key file pointed to by KEY.
 	                       If the file does not exist, a new key will be created
-	                       and writen to the file pointed to by KEY. CSR should
+	                       and written to the file pointed to by KEY. CSR should
 	                       be a path to where the request will be written.
 	                       The KEY argument can also be a PKCS11 URI pointing
-	                       to a key on a hardware device like a smartcard. If
-	                       you only have one smartcard inserted in the computer,
-	                       the string "pkcs11:" is sufficent.
+	                       to a key on a hardware device like a smart card. If
+	                       you only have one smart card inserted in the computer,
+	                       the string "pkcs11:" is sufficient.
 	                       Request parameters will will be asked for
 	                       interactively.
 	                       Note 1: This command does not require a previously
 	                       setup CA and can be run from any working directory.
-	                       Note 2: Smartcard support requires that openssl
+	                       Note 2: Smart card support requires that openssl
 	                       has support for engine and that the openssl pkcs11
 	                       engine is installed. You also need a properly setup
-	                       smartcard.
+	                       smart card.
 	  sign CSR [CRT]     - Create a new certificate by signing the signing
 	                       request pointed to by CSR. CSR must be a path to a
 	                       PEM encoded file containing the CSR and must end with
@@ -897,11 +897,11 @@ function print_usage() {
 	                       see available certificates and their serial numbers.
 	  revoke SERIAL      - Revoke a previously created certificate. SERIAL must
 	                       be the serial number for an existing certificate.
-	                       Use the list command to se available certificates and
+	                       Use the list command to see available certificates and
 	                       their serial numbers.
 	                       Note: The CRL will not be updated. The recreate-crl
 	                       command need to be run to generate a new CRL.
-	  recreate-crl       - Recreate the CRL. Must be used regulary since a CRL
+	  recreate-crl       - Recreate the CRL. Must be used regularly since a CRL
 	                       has a limited lifespan. If CRLs for the CA is to be
 	                       used, this command must be run at even intervals and
 	                       the new CRL to be distributed to everyone using the
@@ -928,7 +928,7 @@ function print_usage() {
 	      $ cd my_ca
 	      $ ${BASENAME} list
 	
-	  Revoke certificate with serial numer 05:
+	  Revoke certificate with serial number 05:
 	      $ cd my_ca
 	      $ ${BASENAME} revoke 05
 	
@@ -943,7 +943,7 @@ function print_usage() {
 
 # Main program starts here.
 
-# Instal exit handler (used to clean up any temporary file created)
+# Install exit handler (used to clean up any temporary file created)
 trap exit_cleanup EXIT
 
 # Initialize variables
