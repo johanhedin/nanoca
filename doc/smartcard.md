@@ -98,7 +98,8 @@ Create a RSA key on the card
 ====
 To create a new RSA key object on the card run the following command:
 
-    $ pkcs15-init --generate-key "rsa:2048" --key-usage digitalSignature,keyEncipherment --auth-id 1 --public-key-label "My Name"
+    $ pkcs15-init --generate-key "rsa:2048" --key-usage digitalSignature,keyEncipherment --auth-id 1 \
+                  --public-key-label "My Name"
 
 Replace "My Name" with the name you intend to use as Common Name later on
 in the certificate. There is no need for them to match, but it makes everything
