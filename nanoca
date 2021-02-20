@@ -2,7 +2,7 @@
 
 # ###########################################################################
 # nanoca - A small file based X.509 Certificate Authority, CA
-# Copyright (C) 2020 Johan Hedin
+# Copyright (C) 2020-2021 Johan Hedin
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 # Requires bash >= 4, openssl >= 1.1.1, awk, ls and wc.
 #
 # Created: 2020-07-10
-# Updated: 2021-02-13
+# Updated: 2021-02-20
 #
 # TODO:
 #  - Take care of stderr from openssl and print that on error
@@ -33,7 +33,7 @@
 #
 
 # Basic constants
-VERSION="1.2.99rc2"
+VERSION="1.2.99rc3"
 BASENAME="$(basename $0)"
 OPENSSL="/usr/bin/openssl"
 AWK="/usr/bin/awk"
@@ -287,7 +287,7 @@ function create_ca() {
     openssl_cfg="$(mktemp -q "${ca_dir}/nanoca-tmp-XXXXXX.cfg")"
     if [[ -f "${openssl_cfg}" ]] ; then
         cat <<- EOF > "${openssl_cfg}"
-	# Temporary file that should not be lying around here.
+	# Temporary file that should not be lying around.
 	# Can be safely removed if found.
 	[req]
 	distinguished_name = ca_distinguished_name
@@ -385,10 +385,8 @@ function create_request() {
         create_keyfile=0
     fi
 
-    # TODO: Ask the user if the certificate is a machine certificate or
-    # a personal. If personal, the Subject should include given name, last
-    # name and so on. And a question about e-mail address should be asked (
-    # and put in the SAN).
+    # Machine and personal certificates are handled differently. Ask the
+    # user what is requested
     echo "Choose request type:"
     echo "  1 - Request for machine certificate"
     echo "  2 - Request for personal certificate"
@@ -450,8 +448,8 @@ function create_request() {
         read -e -i "${csr_l}"     -p "Location or City, L: " csr_l
         read -e -i "${csr_o}"     -p "Organization, O: " csr_o
         read -e -i "${csr_ou}"    -p "Organizational Unit, OU: " csr_ou
-        read -e -i "${csr_gn}"    -p "Fist/Given name, GN: " csr_gn
-        read -e -i "${csr_sn}"    -p "Last/Family name, SN: " csr_sn
+        read -e -i "${csr_gn}"    -p "Fist/Given Name, GN: " csr_gn
+        read -e -i "${csr_sn}"    -p "Last/Family Name, SN: " csr_sn
         [[ -n "${csr_sn}" ]] && csr_cn="${csr_sn}"
         [[ -n "${csr_gn}" ]] && csr_cn="${csr_gn}${csr_cn:+ }${csr_cn}"
         read -e -i "${csr_cn}"    -p "Common Name, CN: " csr_cn
@@ -471,14 +469,14 @@ function create_request() {
             fi
         fi
 
-        read -e -i "${csr_msupn}" -p "Microfoft User Principal Name, UPN: " csr_msupn
+        read -e -i "${csr_msupn}" -p "Microsoft User Principal Name, UPN: " csr_msupn
         if [[ -n "${csr_msupn}" ]] ; then
+            # TODO: Validate that the UPN is in the form username@domain
             csr_san="${csr_san}${csr_san:+,}otherName:msUPN;UTF8:${csr_msupn}"
             csr_eku="${csr_eku}${csr_eku:+,}msSmartcardLogin"
         fi
 
         read -e -i "${csr_uid}"   -p "Username (Unix username), UID: " csr_uid
-
         # TODO: Add validation for the UID
 
         csr_eku="${csr_eku}${csr_eku:+,}clientAuth"
@@ -487,10 +485,9 @@ function create_request() {
     # Hard code key usage for the time being. The usage set here should work
     # for the intended certificate usages for nanoca. Se RFC 5820 chapter
     # 4.2.1.3 and 4.2.1.12 for documentation.
-    # TODO: Add msSmartcardLogin?
     csr_ku="digitalSignature,keyEncipherment"
 
-    # Ask if a newly created kes should be pass phrase protected
+    # Ask if a newly created key file should be pass phrase protected
     if [[ ${create_keyfile} -eq 1 ]] ; then
         if yesanswer "${keyfile_pw_protected}" "Pass phrase protect the new RSA key" ; then
             keyfile_pw_protected="Yes"
@@ -545,7 +542,7 @@ function create_request() {
     if [[ -f "${openssl_cfg}" ]] ; then
         cat <<- EOF > "${openssl_cfg}"
 	# TODO add pkcs11 engine support here if simple?!
-	# Temporary file that should not be lying around here.
+	# Temporary file that should not be lying around.
 	# Can be safely removed if found.
 	[req]
 	distinguished_name = csr_distinguished_name
@@ -669,7 +666,7 @@ function sign_request() {
     openssl_cfg="$(mktemp -q "${ca_dir}/nanoca-tmp-XXXXXX.cfg")"
     if [[ -f "${openssl_cfg}" ]] ; then
         cat <<- EOF > "${openssl_cfg}"
-	# Temporary file that should not be lying around here.
+	# Temporary file that should not be lying around.
 	# Can be safely removed if found.
 	[nanoca]
 	database        = ${ca_dir}/private/crtdb
@@ -756,7 +753,7 @@ function revoke_cert() {
     openssl_cfg="$(mktemp -q "${ca_dir}/nanoca-tmp-XXXXXX.cfg")"
     if [[ -f "${openssl_cfg}" ]] ; then
         cat <<- EOF > "${openssl_cfg}"
-	# Temporary file that should not be lying around here.
+	# Temporary file that should not be lying around.
 	# Can be safely removed if found.
 	[nanoca]
 	database  = ${ca_dir}/private/crtdb
@@ -802,7 +799,7 @@ function recreate_crl() {
     openssl_cfg="$(mktemp -q "${ca_dir}/nanoca-tmp-XXXXXX.cfg")"
     if [[ -f "${openssl_cfg}" ]] ; then
         cat <<- EOF > "${openssl_cfg}"
-	# Temporary file that should not be lying around here.
+	# Temporary file that should not be lying around.
 	# Can be safely removed if found.
 	[nanoca]
 	database  = ${ca_dir}/private/crtdb
@@ -1026,4 +1023,3 @@ case "${command}" in
 esac
 
 exit ${ret}
-
