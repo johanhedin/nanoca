@@ -906,7 +906,8 @@ function print_usage() {
 	  list               - List certificates that the CA has created.
 	  create             - Create a new CA in the current working directory
 	                       (or in CADIR given by the --dir option). Configuration
-	                       will be asked for interactively.
+	                       will be asked for interactively. The directory must
+	                       be empty.
 	
 	Options:
 	  -h, --help         Show this help and then exit
