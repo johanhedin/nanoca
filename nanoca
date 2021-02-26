@@ -33,7 +33,7 @@
 #
 
 # Basic constants
-VERSION="1.2.99rc4"
+VERSION="1.3.0"
 BASENAME="$(basename $0)"
 OPENSSL="/usr/bin/openssl"
 AWK="/usr/bin/awk"
