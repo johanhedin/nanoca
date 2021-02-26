@@ -19,10 +19,10 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 # ###########################################################################
 
-# Requires bash >= 4, openssl >= 1.1.1, awk, ls and wc.
+# Requires bash >= 4, openssl >= 1.1.1, awk, ls, cat and wc.
 #
 # Created: 2020-07-10
-# Updated: 2021-02-20
+# Updated: 2021-02-26
 #
 # TODO:
 #  - Take care of stderr from openssl and print that on error
@@ -33,7 +33,7 @@
 #
 
 # Basic constants
-VERSION="1.2.99rc3"
+VERSION="1.2.99rc4"
 BASENAME="$(basename $0)"
 OPENSSL="/usr/bin/openssl"
 AWK="/usr/bin/awk"
@@ -628,6 +628,7 @@ function sign_request() {
     local ca_name="$2"
     local in_csr="$3"
     local out_crt="$4"
+    local serial=""
     local private_csr=""
     local cert_days="${CERT_DAYS_DEFAULT}"
 
@@ -705,7 +706,8 @@ function sign_request() {
     fi
 
     # Save the CSR
-    private_csr="${ca_dir}/csrs/$(cat private/crtserial).csr"
+    serial=$(cat ${ca_dir}/private/crtserial)
+    private_csr="${ca_dir}/csrs/${serial}.csr"
     cp "${in_csr}" "${private_csr}"
 
     ${OPENSSL} ca \
