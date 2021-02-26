@@ -50,6 +50,6 @@ X.509 related references
 
 Requirements
 ====
-`nanoca` is written in bash and uses `openssl`, `awk`, `ls` and `wc`. It has
-been tested on Fedora 33 and Raspberry Pi OS but should run on almost any
-recent Linux distribution that has `openssl >= 1.1.1`.
+`nanoca` is written in bash and uses `openssl`, `awk`, `ls`, `cat` and `wc`.
+It has been tested on Fedora 33 and Raspberry Pi OS but should run on almost
+any recent Linux distribution that has `openssl >= 1.1.1`.
