@@ -870,7 +870,7 @@ function print_usage() {
 	
 	${BASENAME} is a simple openssl based X.509 CA using files on disk. It can
 	create and sign signing requests and create a CRL with revoked certificates.
-	Multiple CAs can easily be creaded and are completely represented by files
+	Multiple CAs can easily be created and are completely represented by files
 	in user specified directories, one per CA. Se available commands below.
 	
 	Commands:
