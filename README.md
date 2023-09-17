@@ -5,7 +5,7 @@ Certificate Authority, CA, that can be used on a home or private network.
 
 It can create CAs, create CSRs, sign CSRs, revoke certificates and create
 CRLs. It has support for creating CSRs using PKCS11 enabled hardware tokens
-(like smartcards) if the underlying `openssl` installation has support for
+(like smart cards) if the underlying `openssl` installation has support for
 pkcs11_engine.
 
 A CA is represented by files in a directory and creating a new CA is as simple
