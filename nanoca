@@ -332,6 +332,7 @@ function create_ca() {
         else
             echo "CA '${ca_cn}' successfully created."
         fi
+        chmod 600 "${ca_dir}/private/${ca_basename}.key"
     else
         echo "Error: Failed to create CA." >&2
         rm -rf "${ca_dir}/private" "${ca_dir}/public" "${ca_dir}/csrs" "${ca_dir}/crts"
