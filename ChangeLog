@@ -1,6 +1,7 @@
 * Day Mon XX YYYY Johan Hedin - 1.4.0 (not released)
 - Support for older openssl. New min requirement is 1.0.1e
 - 2048 bits as default key size to support a wider user base
+- Smart card documentation cleanups and clarifications
 
 * Fri Feb 26 2021 Johan Hedin - 1.3.0
 - Support for adding MS UPN SAN to personal CSR
