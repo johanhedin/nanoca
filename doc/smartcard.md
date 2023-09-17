@@ -78,10 +78,10 @@ Security Officer PUK that is requested).
 
 The next step is to set the User PIN and PUK. For smart cards, a PIN is
 considered it's own "object". You create a PIN object and then references that
-object when creating a new key or loading a certificate. The Security Officer PIN
-object created previously is automatically assigned the ID ff. Here we choose the
-ID 01 when creating the User PIN object. The label below is optional, but it is
-nice to have meaningful names on objects:
+object when creating a new key. The Security Officer PIN object created
+previously is automatically assigned the ID ff. Here we choose the ID 01 when
+creating the User PIN object. The label below is optional, but it is nice to
+have meaningful names on objects:
 
     $ pkcs15-init --store-pin --id 01 --label "User PIN"
 
