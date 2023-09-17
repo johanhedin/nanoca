@@ -31,6 +31,10 @@
 #  - Add support for creating intermediate CAs and for signing CA certs
 #  - Make sure that spaces in file names are properly handled
 #  - Make criticallity of CA:true for the CA configurable
+#  - Make key size, and CA and CSR lifespan configurable when creating the CA.
+#    Store the settings in private/nanoca.conf
+#  - Add support for RSA-PSS CA and CSR
+#  - Add CRT lifespan question when signing. Cap to CA lifespan
 #
 
 # Basic constants
@@ -42,8 +46,8 @@ AWK="/usr/bin/awk"
 # CA lifespan (20 years)
 CA_DAYS_DEFAULT="7300"
 
-# CA RSA key size (4096 bits)
-CA_RSA_KEYSIZE_DEFAULT="4096"
+# CA RSA key size (2048 bits)
+CA_RSA_KEYSIZE_DEFAULT="2048"
 
 # CA RSA key protected by password [Yes/No] (No)
 CA_KEY_PW_PROTECTED_DEAFULT="No"
@@ -54,8 +58,8 @@ CA_PATH_DEFAULT="$(pwd)"
 # Signed certificate lifespan (1 year)
 CERT_DAYS_DEFAULT="365"
 
-# Certificate RSA key size for a newly created key (4096 bits)
-CERT_RSA_KEYSIZE_DEFAULT="4096"
+# Certificate RSA key size for a newly created key (2048 bits)
+CERT_RSA_KEYSIZE_DEFAULT="2048"
 
 # Certificate RSA key protected by password [Yes/No] (No)
 CERT_KEY_PW_PROTECTED_DEAFULT="No"
