@@ -69,7 +69,7 @@ Even though no PIN and PUK are created at this stage, they need to be given
 as arguments. If not, `pkcs15-init` will ask for PIN indefinitely. The values
 given are not used and can be whatever.
 
-You will be asked to enter the Security Officer PIN and SO PUK that should be
+You will be asked to set the Security Officer PIN and PUK that should be
 used for the card. Enter the values that you came up with previously (note that
 the wording for the Security Officer PUK prompt is a bit misleading and talk
 about "User", but it is the Security Officer PUK that is requested).
