@@ -296,12 +296,15 @@ function create_ca() {
 	# Temporary file that should not be lying around.
 	# Can be safely removed if found.
 	[req]
-	distinguished_name = ca_distinguished_name
-	x509_extensions = ca_extensions
+	# Request for a CA (self signed certificate)
+	distinguished_name = nanoca_distinguished_name
+	x509_extensions = nanoca_ca_extensions
 	
-	[ca_distinguished_name]
+	[nanoca_distinguished_name]
+	# Empty section
 	
-	[ca_extensions]
+	[nanoca_ca_extensions]
+	# Extensions for the CA
 	basicConstraints = critical,CA:true
 	subjectKeyIdentifier = hash
 	keyUsage = critical,keyCertSign,cRLSign
@@ -398,8 +401,8 @@ function create_request() {
     # Machine and personal certificates are handled differently. Ask the
     # user what is requested
     echo "Choose request type:"
-    echo "  1 - Request for machine certificate"
-    echo "  2 - Request for personal certificate"
+    echo "  1 - Request for machine certificate (server and/or client)"
+    echo "  2 - Request for personal client certificate"
     local req_type="$(choose_value 'Enter request type' '1' '1 2')"
 
     if [[ "${req_type}" == "1" ]] ; then
@@ -413,7 +416,7 @@ function create_request() {
         # Collect Subject attributes from user
         echo "Enter Subject (the CN attribute is mandatory, others can"
         echo "be left out by entering a empty value):"
-        read -e -i "${csr_c}"  -p "Country Code, C: " csr_c
+        read -e -i "${csr_c}"  -p "ISO 3166-1 alpha-2 Country Code, C: " csr_c
         read -e -i "${csr_st}" -p "State or Province, ST: " csr_st
         read -e -i "${csr_l}"  -p "Location or City, L: " csr_l
         read -e -i "${csr_o}"  -p "Organization, O: " csr_o
@@ -453,7 +456,7 @@ function create_request() {
         # Collect Subject attributes from user
         echo "Enter Subject (the CN attribute is mandatory, others can"
         echo "be left out by entering a empty value):"
-        read -e -i "${csr_c}"     -p "Country Code, C: " csr_c
+        read -e -i "${csr_c}"     -p "ISO 3166-1 alpha-2 Country Code, C: " csr_c
         read -e -i "${csr_st}"    -p "State or Provice, ST: " csr_st
         read -e -i "${csr_l}"     -p "Location or City, L: " csr_l
         read -e -i "${csr_o}"     -p "Organization, O: " csr_o
@@ -543,9 +546,9 @@ function create_request() {
     fi
 
     # Prepare KU, EKU and SAN
-    [[ -n "${csr_ku}" ]]  && csr_ku="keyUsage=${csr_ku}"
-    [[ -n "${csr_eku}" ]] && csr_eku="extendedKeyUsage=${csr_eku}"
-    [[ -n "${csr_san}" ]] && csr_san="subjectAltName=${csr_san}"
+    [[ -n "${csr_ku}" ]]  && csr_ku="keyUsage = ${csr_ku}"
+    [[ -n "${csr_eku}" ]] && csr_eku="extendedKeyUsage = ${csr_eku}"
+    [[ -n "${csr_san}" ]] && csr_san="subjectAltName = ${csr_san}"
 
     # Temporary config file to openssl
     openssl_cfg=$(mktemp -q "/tmp/nanoca-tmp-XXXXXX.cfg")
@@ -555,9 +558,20 @@ function create_request() {
 	# Temporary file that should not be lying around.
 	# Can be safely removed if found.
 	[req]
-	distinguished_name = csr_distinguished_name
+	# Request for a CSR that must be signed by a CA
+	distinguished_name = nanoca_distinguished_name
+	req_extensions = nanoca_req_extensions
 	
-	[csr_distinguished_name]
+	[nanoca_distinguished_name]
+	# Empty section
+	
+	[nanoca_req_extensions]
+	# Extensions for the CSR
+	basicConstraints = critical,CA:false
+	subjectKeyIdentifier = hash
+	${csr_ku}
+	${csr_eku}
+	${csr_san}
 	EOF
     else
         echo "Error: Unable to create temporary config file. Aborting." >&2
@@ -579,11 +593,6 @@ function create_request() {
             -utf8 \
             -sha256 \
             -subj "${csr_subject}" \
-            -addext "basicConstraints=critical,CA:false" \
-            -addext "subjectKeyIdentifier=hash" \
-            ${csr_ku:+-addext} ${csr_ku} \
-            ${csr_eku:+-addext} ${csr_eku} \
-            ${csr_san:+-addext} ${csr_san} \
             -out "${csr_outfile}" \
         2>/dev/null
         ret=$?
@@ -597,11 +606,6 @@ function create_request() {
                 -utf8 \
                 -sha256 \
                 -subj "${csr_subject}" \
-                -addext "basicConstraints=critical,CA:false" \
-                -addext "subjectKeyIdentifier=hash" \
-                ${csr_ku:+-addext} ${csr_ku} \
-                ${csr_eku:+-addext} ${csr_eku} \
-                ${csr_san:+-addext} ${csr_san} \
                 -out "${csr_outfile}" \
             2>/dev/null
             ret=$?
@@ -616,11 +620,6 @@ function create_request() {
                 -utf8 \
                 -sha256 \
                 -subj "${csr_subject}" \
-                -addext "basicConstraints=critical,CA:false" \
-                -addext "subjectKeyIdentifier=hash" \
-                ${csr_ku:+-addext} ${csr_ku} \
-                ${csr_eku:+-addext} ${csr_eku} \
-                ${csr_san:+-addext} ${csr_san} \
                 -out "${csr_outfile}" \
             2>/dev/null
             ret=$?
@@ -929,7 +928,7 @@ function print_usage() {
 	
 	Examples:
 	  Create a new key and CSR in /tmp/mycert.key and /tmp/mycert.csr:
-	      $ ${BASENAME} req /tmp/mycert.key and /tmp/mycert.csr
+	      $ ${BASENAME} req /tmp/mycert.key /tmp/mycert.csr
 	
 	  Sign the CSR /tmp/mycert.csr and write the cert to /tmp/mycert.crt:
 	      $ ${BASENAME} --dir=my_ca sign /tmp/mycert.csr /tmp/mycert.crt
