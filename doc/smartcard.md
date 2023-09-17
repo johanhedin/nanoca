@@ -2,7 +2,7 @@ nanoca with smart card
 ====
 `nanoca` can create CSRs using RSA keys on smart cards. This document is a short
 instruction how to provision a `nanoca` signed certificate on a
-[Aventra](https://aventra.fi) MyEID smart card using Fedora 33.
+[Aventra](https://aventra.fi) MyEID smart card using Fedora 38.
 
 The instruction is mainly based on the two following OpenSC Wiki pages:
 
@@ -17,9 +17,9 @@ outside the scope.
 
 Prerequisites
 ====
-* Aventra MyEID smart card. Can be ordered from their [web shop](https://aventra.fi/webshop).
+* Aventra MyEID smart card. Can be ordered from their [web shop](https://webservices.aventra.fi/webshop).
 * Supported smart card reader.
-* Running Fedora 33 installation.
+* Running Fedora 38 installation.
 
 
 Software
