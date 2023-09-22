@@ -47,7 +47,7 @@ AWK="/usr/bin/awk"
 CA_DAYS_DEFAULT="7300"
 
 # CA RSA key size (2048 bits)
-CA_RSA_KEYSIZE_DEFAULT="2048"
+CA_KEYSIZE_DEFAULT="2048"
 
 # CA RSA key protected by password [Yes/No] (No)
 CA_KEY_PW_PROTECTED_DEAFULT="No"
@@ -210,7 +210,7 @@ function create_ca() {
     local ca_ou=""
     local ca_cn=""
     local ca_days="${CA_DAYS_DEFAULT}"
-    local ca_rsa_keysize="${CA_RSA_KEYSIZE_DEFAULT}"
+    local ca_keysize="${CA_KEYSIZE_DEFAULT}"
     local ca_pw_protected="${CA_KEY_PW_PROTECTED_DEAFULT}"
     local ret=""
 
@@ -320,7 +320,7 @@ function create_ca() {
         -utf8 \
         -sha256 \
         -days ${ca_days}  \
-        -newkey rsa:${ca_rsa_keysize} \
+        -newkey rsa:${ca_keysize} \
         -keyout "${ca_dir}/private/${ca_basename}.key" \
         ${ca_pw_protected--nodes} \
         -subj "${ca_subject}" \
