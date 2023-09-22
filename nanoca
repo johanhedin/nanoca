@@ -59,7 +59,7 @@ CA_PATH_DEFAULT="$(pwd)"
 CERT_DAYS_DEFAULT="365"
 
 # Certificate RSA key size for a newly created key (2048 bits)
-CERT_RSA_KEYSIZE_DEFAULT="2048"
+CERT_KEYSIZE_DEFAULT="2048"
 
 # Certificate RSA key protected by password [Yes/No] (No)
 CERT_KEY_PW_PROTECTED_DEAFULT="No"
@@ -347,7 +347,7 @@ function create_ca() {
 
 # Function to create a CSR.
 function create_request() {
-    local csr_keyfile="$1"
+    local crt_keyfile="$1"
     local csr_outfile="$2"
     local csr_c=""
     local csr_st=""
@@ -364,7 +364,7 @@ function create_request() {
     local csr_ku=""
     local csr_eku=""
     local csr_san=""
-    local csr_keysize="${CERT_RSA_KEYSIZE_DEFAULT}"
+    local crt_keysize="${CERT_KEYSIZE_DEFAULT}"
     local res=""
     local ret=1
     local san_str=""
@@ -372,9 +372,9 @@ function create_request() {
     local keyfile_pw_protected="${CERT_KEY_PW_PROTECTED_DEAFULT}"
 
     # Verify that the requested key file does not point to a directory
-    if [[ "${csr_keyfile}" == "" || \
-          "${csr_keyfile}" == "." || \
-          "${csr_keyfile}" == ".."  || -d "${csr_keyfile}" ]] ; then
+    if [[ "${crt_keyfile}" == "" || \
+          "${crt_keyfile}" == "." || \
+          "${crt_keyfile}" == ".."  || -d "${crt_keyfile}" ]] ; then
         echo "Error: Invalid path to key file." >&2
         return 1
     fi
@@ -389,12 +389,12 @@ function create_request() {
 
     # If the requested key file already exist, use it instead of creating
     # a new one
-    if [[ -f "${csr_keyfile}" ]] ; then
+    if [[ -f "${crt_keyfile}" ]] ; then
         create_keyfile=0
     fi
 
     # If the requested key file is a PKCS11 URI, do not create key file
-    if [[ "${csr_keyfile}" =~ ^pkcs11: ]] ; then
+    if [[ "${crt_keyfile}" =~ ^pkcs11: ]] ; then
         create_keyfile=0
     fi
 
@@ -524,11 +524,11 @@ function create_request() {
     echo "    Certificate type: ${req_type}"
     echo "    Output CSR file: ${csr_outfile}"
     if [[ ${create_keyfile} -eq 1 ]] ; then
-        echo "    Output Key file: ${csr_keyfile}"
-        echo "    Output Key size: ${csr_keysize}"
+        echo "    Output Key file: ${crt_keyfile}"
+        echo "    Output Key size: ${crt_keysize}"
         echo "    Output Key pass phrase protected: ${keyfile_pw_protected}"
     else
-        echo "    Existing Key file: ${csr_keyfile}"
+        echo "    Existing Key file: ${crt_keyfile}"
     fi
     echo "    Subject: ${csr_subject}"
     [[ -n "${csr_ku}" ]]  &&  echo "    Key Usage: ${csr_ku}"
@@ -587,8 +587,8 @@ function create_request() {
         ${OPENSSL} req \
             -config "${openssl_cfg}" \
             -new \
-            -newkey rsa:${csr_keysize} \
-            -keyout "${csr_keyfile}" \
+            -newkey rsa:${crt_keysize} \
+            -keyout "${crt_keyfile}" \
             ${enc_arg} \
             -utf8 \
             -sha256 \
@@ -597,12 +597,12 @@ function create_request() {
         2>/dev/null
         ret=$?
     else
-        if [[ ! "${csr_keyfile}" =~ ^pkcs11: ]] ; then
+        if [[ ! "${crt_keyfile}" =~ ^pkcs11: ]] ; then
             # Key file on disk
             ${OPENSSL} req \
                 -config "${openssl_cfg}" \
                 -new \
-                -key "${csr_keyfile}" \
+                -key "${crt_keyfile}" \
                 -utf8 \
                 -sha256 \
                 -subj "${csr_subject}" \
@@ -616,7 +616,7 @@ function create_request() {
                 -engine pkcs11 \
                 -keyform engine \
                 -new \
-                -key "${csr_keyfile}" \
+                -key "${crt_keyfile}" \
                 -utf8 \
                 -sha256 \
                 -subj "${csr_subject}" \
