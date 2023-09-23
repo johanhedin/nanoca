@@ -22,7 +22,7 @@
 # Requires bash >= 4, openssl >= 1.0.1e, awk, ls, cat and wc.
 #
 # Created: 2020-07-10
-# Updated: 2023-09-17
+# Updated: 2023-09-23
 #
 # TODO:
 #  - Take care of stderr from openssl and print that on error
@@ -38,7 +38,7 @@
 #
 
 # Basic constants
-VERSION="1.3.99rc1"
+VERSION="1.3.99rc2"
 BASENAME="$(basename $0)"
 OPENSSL="/usr/bin/openssl"
 AWK="/usr/bin/awk"
@@ -47,10 +47,13 @@ AWK="/usr/bin/awk"
 CA_DAYS_DEFAULT="7300"
 
 # CA RSA key size (2048 bits)
-CA_KEYSIZE_DEFAULT="2048"
+CA_RSA_KEYSIZE_DEFAULT="2048"
 
 # CA RSA key protected by password [Yes/No] (No)
 CA_KEY_PW_PROTECTED_DEAFULT="No"
+
+# CA RSA Signature Scheme [PKCS1-V1.5/PSS] (PKCS1-V1.5)
+CA_RSA_SSA_DEFAULT="PKCS1-V1.5"
 
 # Path to the CA (working directory)
 CA_PATH_DEFAULT="$(pwd)"
@@ -210,8 +213,10 @@ function create_ca() {
     local ca_ou=""
     local ca_cn=""
     local ca_days="${CA_DAYS_DEFAULT}"
-    local ca_keysize="${CA_KEYSIZE_DEFAULT}"
+    local ca_rsa_keysize="${CA_RSA_KEYSIZE_DEFAULT}"
+    local ca_rsa_ssa="${CA_RSA_SSA_DEFAULT}"
     local ca_pw_protected="${CA_KEY_PW_PROTECTED_DEAFULT}"
+    local ca_rsa_padding_mode=""
     local ret=""
 
     # Verify that the directory for the new CA exists and is empty
@@ -239,6 +244,20 @@ function create_ca() {
     # it is used in the file names for the CA certificate and key
     if [[ -z "${ca_cn}" || ! "${ca_cn}" =~ ^[a-zA-Z0-9\ \-]+$ ]] ; then
         echo "Error: Common Name for the CA must be non-empty and must satisfy ^[a-zA-Z0-9 -]\$." >&2
+        return 1
+    fi
+
+    echo "Enter CA cryptographic settings:"
+    read -e -i "${ca_rsa_keysize}" -p "RSA keysize in bits [2048/4096]: " ca_rsa_keysize
+    if [[ "${ca_rsa_keysize}" != "2048" && "${ca_rsa_keysize}" != "4096" ]] ; then
+        echo "Error: RSA keysize must be 2048 or 4096." >&2
+        return 1
+    fi
+
+    read -e -i "${ca_rsa_ssa}" -p "RSA signature scheme [PKCS1-V1.5/PSS]: " ca_rsa_ssa
+    ca_rsa_ssa="${ca_rsa_ssa,,}"
+    if [[ "${ca_rsa_ssa}" != "pkcs1-v1.5" && "${ca_rsa_ssa}" != "pss" ]] ; then
+        echo "Error: RSA signature scheme must be PKCS1-V1.5 or PSS." >&2
         return 1
     fi
 
@@ -314,16 +333,23 @@ function create_ca() {
         return 1
     fi
 
+    if [[ "${ca_rsa_ssa}" == "pss" ]] ; then
+        ca_rsa_padding_mode="rsa_padding_mode:pss"
+    else
+        ca_rsa_padding_mode=""
+    fi
+
     ${OPENSSL} req \
         -config "${openssl_cfg}" \
         -x509 \
         -utf8 \
         -sha256 \
         -days ${ca_days}  \
-        -newkey rsa:${ca_keysize} \
+        -newkey rsa:${ca_rsa_keysize} \
         -keyout "${ca_dir}/private/${ca_basename}.key" \
         ${ca_pw_protected--nodes} \
         -subj "${ca_subject}" \
+        ${ca_rsa_padding_mode:+-sigopt} ${ca_rsa_padding_mode} \
         -outform PEM \
         -out "${ca_dir}/public/${ca_basename}.crt" \
     2> /dev/null
