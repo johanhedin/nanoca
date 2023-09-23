@@ -26,19 +26,19 @@
 #
 # TODO:
 #  - Take care of stderr from openssl and print that on error
-#  - Make sure that automatically added CN to SAN only occur once
-#  - Make it possible to give CRL days as input when creating new CRLs
+#  - Make sure automatically added CN to SAN only occur once
+#  - Make it possible to give CRL lifespan as input when creating new CRLs
 #  - Add support for creating intermediate CAs and for signing CA certs
 #  - Make sure that spaces in file names are properly handled
-#  - Make criticallity of CA:true for the CA configurable
-#  - Make key size, and CA and CSR lifespan configurable when creating the CA.
-#    Store the settings in private/nanoca.conf
-#  - Add support for RSA-PSS CA and CSR
-#  - Add CRT lifespan question when signing. Cap to CA lifespan
+#  - Make criticallity of "CA:true" configurable for the CA
+#  - Make CA lifespan configurable when creating the CA
+#  - Make CRT lifespan configurable when signing a CSR. Cap to CA lifespan
+#  - Make RSASSA-PSS signature work when using keys on PKCS11 tokens
+#  - Add printout of how the signed certificate is going to look like
 #
 
 # Basic constants
-VERSION="1.3.99rc2"
+VERSION="1.3.99rc3"
 BASENAME="$(basename $0)"
 OPENSSL="/usr/bin/openssl"
 AWK="/usr/bin/awk"
@@ -62,12 +62,15 @@ CA_PATH_DEFAULT="$(pwd)"
 CERT_DAYS_DEFAULT="365"
 
 # Certificate RSA key size for a newly created key (2048 bits)
-CERT_KEYSIZE_DEFAULT="2048"
+CERT_RSA_KEYSIZE_DEFAULT="2048"
 
 # Certificate RSA key protected by password [Yes/No] (No)
 CERT_KEY_PW_PROTECTED_DEAFULT="No"
 
-# CRL lifespan (netx update) (one month)
+# CSR RSA Signature Scheme [PKCS1-V1.5/PSS] (PKCS1-V1.5)
+CSR_RSA_SSA_DEFAULT="PKCS1-V1.5"
+
+# CRL lifespan (next update) (one month)
 CRL_DAYS_DEFAULT="30"
 
 
@@ -215,7 +218,7 @@ function create_ca() {
     local ca_days="${CA_DAYS_DEFAULT}"
     local ca_rsa_keysize="${CA_RSA_KEYSIZE_DEFAULT}"
     local ca_rsa_ssa="${CA_RSA_SSA_DEFAULT}"
-    local ca_pw_protected="${CA_KEY_PW_PROTECTED_DEAFULT}"
+    local ca_key_pw_protected="${CA_KEY_PW_PROTECTED_DEAFULT}"
     local ca_rsa_padding_mode=""
     local ret=""
 
@@ -261,10 +264,10 @@ function create_ca() {
         return 1
     fi
 
-    if yesanswer "${ca_pw_protected}" "Should the CA private key be pass phrase protected" ; then
-        ca_pw_protected=""
+    if yesanswer "${ca_key_pw_protected}" "Should the CA private key be pass phrase protected" ; then
+        ca_key_pw_protected=""
     else
-        unset ca_pw_protected
+        unset ca_key_pw_protected
     fi
 
     # Build CA subject string
@@ -347,7 +350,7 @@ function create_ca() {
         -days ${ca_days}  \
         -newkey rsa:${ca_rsa_keysize} \
         -keyout "${ca_dir}/private/${ca_basename}.key" \
-        ${ca_pw_protected--nodes} \
+        ${ca_key_pw_protected--nodes} \
         -subj "${ca_subject}" \
         ${ca_rsa_padding_mode:+-sigopt} ${ca_rsa_padding_mode} \
         -outform PEM \
@@ -356,7 +359,7 @@ function create_ca() {
     ret=$?
 
     if [[ ${ret} -eq 0 ]] ; then
-        if [[ -n "${ca_pw_protected+x}" ]] ; then
+        if [[ -n "${ca_key_pw_protected+x}" ]] ; then
             echo "CA '${ca_cn}' successfully created. Please do not forget the password."
         else
             echo "CA '${ca_cn}' successfully created."
@@ -390,12 +393,14 @@ function create_request() {
     local csr_ku=""
     local csr_eku=""
     local csr_san=""
-    local crt_keysize="${CERT_KEYSIZE_DEFAULT}"
+    local crt_rsa_keysize="${CERT_RSA_KEYSIZE_DEFAULT}"
+    local csr_rsa_ssa="${CSR_RSA_SSA_DEFAULT}"
+    local crt_key_pw_protected="${CERT_KEY_PW_PROTECTED_DEAFULT}"
+    local csr_rsa_padding_mode=""
     local res=""
     local ret=1
     local san_str=""
     local create_keyfile=1
-    local keyfile_pw_protected="${CERT_KEY_PW_PROTECTED_DEAFULT}"
 
     # Verify that the requested key file does not point to a directory
     if [[ "${crt_keyfile}" == "" || \
@@ -521,6 +526,22 @@ function create_request() {
         csr_eku="${csr_eku}${csr_eku:+,}clientAuth"
     fi
 
+    echo "Enter cryptographic settings:"
+    if [[ ${create_keyfile} -eq 1 ]] ; then
+        read -e -i "${crt_rsa_keysize}" -p "RSA keysize in bits [2048/4096]: " crt_rsa_keysize
+        if [[ "${crt_rsa_keysize}" != "2048" && "${ccrt_rsa_keysize}" != "4096" ]] ; then
+            echo "Error: RSA keysize must be 2048 or 4096." >&2
+            return 1
+        fi
+    fi
+
+    read -e -i "${csr_rsa_ssa}" -p "RSA signature scheme for the CSR [PKCS1-V1.5/PSS]: " csr_rsa_ssa
+    csr_rsa_ssa="${csr_rsa_ssa^^}"
+    if [[ "${csr_rsa_ssa}" != "PKCS1-V1.5" && "${csr_rsa_ssa}" != "PSS" ]] ; then
+        echo "Error: RSA signature scheme must be PKCS1-V1.5 or PSS." >&2
+        return 1
+    fi
+
     # Hard code key usage for the time being. The usage set here should work
     # for the intended certificate usages for nanoca. Se RFC 5820 chapter
     # 4.2.1.3 and 4.2.1.12 for documentation.
@@ -528,8 +549,8 @@ function create_request() {
 
     # Ask if a newly created key file should be pass phrase protected
     if [[ ${create_keyfile} -eq 1 ]] ; then
-        if yesanswer "${keyfile_pw_protected}" "Pass phrase protect the new RSA key" ; then
-            keyfile_pw_protected="Yes"
+        if yesanswer "${crt_key_pw_protected}" "Pass phrase protect the new RSA key" ; then
+            crt_key_pw_protected="Yes"
         fi
     fi
 
@@ -551,11 +572,12 @@ function create_request() {
     echo "    Output CSR file: ${csr_outfile}"
     if [[ ${create_keyfile} -eq 1 ]] ; then
         echo "    Output Key file: ${crt_keyfile}"
-        echo "    Output Key size: ${crt_keysize}"
-        echo "    Output Key pass phrase protected: ${keyfile_pw_protected}"
+        echo "    Output Key size: ${crt_rsa_keysize}"
+        echo "    Output Key pass phrase protected: ${crt_key_pw_protected}"
     else
         echo "    Existing Key file: ${crt_keyfile}"
     fi
+    echo "    RSA signature scheme: ${csr_rsa_ssa}"
     echo "    Subject: ${csr_subject}"
     [[ -n "${csr_ku}" ]]  &&  echo "    Key Usage: ${csr_ku}"
     [[ -n "${csr_ku}" ]]  &&  echo "    Extended Key Usage: ${csr_eku}"
@@ -604,17 +626,24 @@ function create_request() {
         return 1
     fi
 
+    if [[ "${csr_rsa_ssa}" == "PSS" ]] ; then
+        csr_rsa_padding_mode="rsa_padding_mode:pss"
+    else
+        csr_rsa_padding_mode=""
+    fi
+
     if [[ ${create_keyfile} -eq 1 ]] ; then
         local enc_arg="-nodes"
-        if [[ ${keyfile_pw_protected} == "Yes" ]] ; then
+        if [[ ${crt_key_pw_protected} == "Yes" ]] ; then
             enc_arg=""
         fi
 
         ${OPENSSL} req \
             -config "${openssl_cfg}" \
             -new \
-            -newkey rsa:${crt_keysize} \
+            -newkey rsa:${crt_rsa_keysize} \
             -keyout "${crt_keyfile}" \
+            ${csr_rsa_padding_mode:+-sigopt} ${csr_rsa_padding_mode} \
             ${enc_arg} \
             -utf8 \
             -sha256 \
@@ -629,6 +658,7 @@ function create_request() {
                 -config "${openssl_cfg}" \
                 -new \
                 -key "${crt_keyfile}" \
+                ${csr_rsa_padding_mode:+-sigopt} ${csr_rsa_padding_mode} \
                 -utf8 \
                 -sha256 \
                 -subj "${csr_subject}" \
@@ -643,6 +673,7 @@ function create_request() {
                 -keyform engine \
                 -new \
                 -key "${crt_keyfile}" \
+                ${csr_rsa_padding_mode:+-sigopt} ${csr_rsa_padding_mode} \
                 -utf8 \
                 -sha256 \
                 -subj "${csr_subject}" \
@@ -650,6 +681,16 @@ function create_request() {
             2>/dev/null
             ret=$?
         fi
+    fi
+
+    if [[ ${ret} -eq 0 ]] ; then
+        if [[ "${crt_key_pw_protected}" == "Yes" ]] ; then
+            echo "CSR successfully created. Please do not forget the password for the key."
+        else
+            echo "CSR successfully created."
+        fi
+    else
+        echo "Error: Failed to create CSR." >&2
     fi
 
     return ${ret}
@@ -666,6 +707,8 @@ function sign_request() {
     local serial=""
     local private_csr=""
     local cert_days="${CERT_DAYS_DEFAULT}"
+    local crt_rsa_ssa="PKCS1-V1.5"
+    local crt_rsa_padding_mode=""
 
     local ca_key_file="${ca_dir}/private/${ca_name}.key"
     local ca_cert_file="${ca_dir}/public/${ca_name}.crt"
@@ -684,6 +727,13 @@ function sign_request() {
     # Create default out file name if not given
     if [[ -z "${out_crt}" ]] ; then
         out_crt="${in_csr%.csr}.crt"
+    fi
+
+    read -e -i "${crt_rsa_ssa}" -p "RSA signature scheme for the certificate [PKCS1-V1.5/PSS]: " crt_rsa_ssa
+    crt_rsa_ssa="${crt_rsa_ssa^^}"
+    if [[ "${crt_rsa_ssa}" != "PKCS1-V1.5" && "${crt_rsa_ssa}" != "PSS" ]] ; then
+        echo "Error: RSA signature scheme must be PKCS1-V1.5 or PSS." >&2
+        return 1
     fi
 
     # Ask for confirmation for the signing
@@ -740,6 +790,12 @@ function sign_request() {
         return 1
     fi
 
+    if [[ "${crt_rsa_ssa}" == "PSS" ]] ; then
+        crt_rsa_padding_mode="rsa_padding_mode:pss"
+    else
+        crt_rsa_padding_mode=""
+    fi
+
     # Save the CSR
     serial=$(cat ${ca_dir}/private/crtserial)
     private_csr="${ca_dir}/csrs/${serial}.csr"
@@ -752,6 +808,7 @@ function sign_request() {
         -cert "${ca_cert_file}" \
         -days ${cert_days} \
         -md sha256 \
+        ${crt_rsa_padding_mode:+-sigopt} ${crt_rsa_padding_mode} \
         -utf8 \
         -notext \
         -batch \
