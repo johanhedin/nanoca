@@ -24,10 +24,10 @@ Prerequisites
 
 Software
 ====
-OpenSC and pcsc-lite need to be installed (they are most likely already
-installed on your system):
+OpenSC, pcsc-lite and pkcs11_engine need to be installed (they are most likely
+already installed on your system):
 
-    $ sudo dnf install opensc pcsc-lite
+    $ sudo dnf install opensc pcsc-lite openssl-pkcs11
 
 The commands `pkcs15-init`and `pkcs15-tool`used below are included in the
 `opensc`package.
