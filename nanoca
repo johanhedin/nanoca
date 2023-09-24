@@ -32,12 +32,15 @@
 #  - Make criticallity of "CA:true" configurable for the CA
 #  - Make CA lifespan configurable when creating the CA
 #  - Make CRT lifespan configurable when signing a CSR. Cap to CA lifespan
-#  - Make RSASSA-PSS signature work when using keys on PKCS11 tokens
+#  - Make RSASSA-PSS signature for CSR work when using keys on PKCS11 tokens
 #  - Add printout of how the signed certificate is going to look like
+#  - Implement re-sign
+#  - Detect correct signature to use for re-sign
+#  - Add support for asking for salt len when using RSASSA-PSS
 #
 
 # Basic constants
-VERSION="1.3.99rc4"
+VERSION="1.3.99rc5"
 BASENAME="$(basename $0)"
 OPENSSL="/usr/bin/openssl"
 AWK="/usr/bin/awk"
@@ -219,6 +222,7 @@ function create_ca() {
     local ca_rsa_ssa="${CA_RSA_SSA_DEFAULT}"
     local ca_key_pw_protected="${CA_KEY_PW_PROTECTED_DEAFULT}"
     local ca_rsa_padding_mode=""
+    local ca_rsa_pss_saltlen=""
     local ret=""
 
     # Verify that the directory for the new CA exists and is empty
@@ -337,8 +341,14 @@ function create_ca() {
 
     if [[ "${ca_rsa_ssa}" == "pss" ]] ; then
         ca_rsa_padding_mode="rsa_padding_mode:pss"
+
+        # Prepare sigopt if custom salt len is given
+        if [[ ! -z "${ca_rsa_pss_saltlen}" ]] ; then
+            ca_rsa_pss_saltlen="rsa_pss_saltlen:${ca_rsa_pss_saltlen}"
+        fi
     else
         ca_rsa_padding_mode=""
+        ca_rsa_pss_saltlen=""
     fi
 
     ${OPENSSL} req \
@@ -352,6 +362,7 @@ function create_ca() {
         ${ca_key_pw_protected--nodes} \
         -subj "${ca_subject}" \
         ${ca_rsa_padding_mode:+-sigopt} ${ca_rsa_padding_mode} \
+        ${ca_rsa_pss_saltlen:+-sigopt} ${ca_rsa_pss_saltlen} \
         -outform PEM \
         -out "${ca_dir}/public/${ca_basename}.crt" \
     2> /dev/null
@@ -396,6 +407,7 @@ function create_request() {
     local csr_rsa_ssa="${CSR_RSA_SSA_DEFAULT}"
     local crt_key_pw_protected="${CERT_KEY_PW_PROTECTED_DEAFULT}"
     local csr_rsa_padding_mode=""
+    local csr_rsa_pss_saltlen=""
     local res=""
     local ret=1
     local san_str=""
@@ -633,8 +645,14 @@ function create_request() {
 
     if [[ "${csr_rsa_ssa}" == "PSS" ]] ; then
         csr_rsa_padding_mode="rsa_padding_mode:pss"
+
+        # Prepare sigopt if custom salt len is given
+        if [[ ! -z "${csr_rsa_pss_saltlen}" ]] ; then
+            csr_rsa_pss_saltlen="rsa_pss_saltlen:${csr_rsa_pss_saltlen}"
+        fi
     else
         csr_rsa_padding_mode=""
+        csr_rsa_pss_saltlen=""
     fi
 
     if [[ ${create_keyfile} -eq 1 ]] ; then
@@ -649,6 +667,7 @@ function create_request() {
             -newkey rsa:${crt_rsa_keysize} \
             -keyout "${crt_keyfile}" \
             ${csr_rsa_padding_mode:+-sigopt} ${csr_rsa_padding_mode} \
+            ${csr_rsa_pss_saltlen:+-sigopt} ${csr_rsa_pss_saltlen} \
             ${enc_arg} \
             -utf8 \
             -sha256 \
@@ -664,6 +683,7 @@ function create_request() {
                 -new \
                 -key "${crt_keyfile}" \
                 ${csr_rsa_padding_mode:+-sigopt} ${csr_rsa_padding_mode} \
+                ${csr_rsa_pss_saltlen:+-sigopt} ${csr_rsa_pss_saltlen} \
                 -utf8 \
                 -sha256 \
                 -subj "${csr_subject}" \
@@ -679,6 +699,7 @@ function create_request() {
                 -new \
                 -key "${crt_keyfile}" \
                 ${csr_rsa_padding_mode:+-sigopt} ${csr_rsa_padding_mode} \
+                ${csr_rsa_pss_saltlen:+-sigopt} ${csr_rsa_pss_saltlen} \
                 -utf8 \
                 -sha256 \
                 -subj "${csr_subject}" \
@@ -714,6 +735,7 @@ function sign_request() {
     local cert_days="${CERT_DAYS_DEFAULT}"
     local crt_rsa_ssa="PKCS1-V1.5"
     local crt_rsa_padding_mode=""
+    local crt_rsa_pss_saltlen=""
 
     local ca_key_file="${ca_dir}/private/${ca_name}.key"
     local ca_cert_file="${ca_dir}/public/${ca_name}.crt"
@@ -797,8 +819,14 @@ function sign_request() {
 
     if [[ "${crt_rsa_ssa}" == "PSS" ]] ; then
         crt_rsa_padding_mode="rsa_padding_mode:pss"
+
+        # Prepare sigopt if custom salt len is given
+        if [[ ! -z "${crt_rsa_pss_saltlen}" ]] ; then
+            crt_rsa_pss_saltlen="rsa_pss_saltlen:${crt_rsa_pss_saltlen}"
+        fi
     else
         crt_rsa_padding_mode=""
+        crt_rsa_pss_saltlen=""
     fi
 
     # Save the CSR
@@ -814,6 +842,7 @@ function sign_request() {
         -days ${cert_days} \
         -md sha256 \
         ${crt_rsa_padding_mode:+-sigopt} ${crt_rsa_padding_mode} \
+        ${crt_rsa_pss_saltlen:+-sigopt} ${crt_rsa_pss_saltlen} \
         -utf8 \
         -notext \
         -batch \
