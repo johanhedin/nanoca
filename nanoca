@@ -22,11 +22,10 @@
 # Requires bash >= 4, openssl >= 1.0.1e, awk, ls, cat and wc.
 #
 # Created: 2020-07-10
-# Updated: 2023-09-23
+# Updated: 2023-09-24
 #
 # TODO:
 #  - Take care of stderr from openssl and print that on error
-#  - Make sure automatically added CN to SAN only occur once
 #  - Make it possible to give CRL lifespan as input when creating new CRLs
 #  - Add support for creating intermediate CAs and for signing CA certs
 #  - Make sure that spaces in file names are properly handled
@@ -38,7 +37,7 @@
 #
 
 # Basic constants
-VERSION="1.3.99rc3"
+VERSION="1.3.99rc4"
 BASENAME="$(basename $0)"
 OPENSSL="/usr/bin/openssl"
 AWK="/usr/bin/awk"
@@ -401,6 +400,7 @@ function create_request() {
     local ret=1
     local san_str=""
     local create_keyfile=1
+    local user_sans=""
 
     # Verify that the requested key file does not point to a directory
     if [[ "${crt_keyfile}" == "" || \
@@ -463,6 +463,10 @@ function create_request() {
        # Get Extended Key Usage settings from the user
         if yesanswer "Yes" "Should the cert be used for TLS server auth" ; then
             csr_eku="${csr_eku}${csr_eku:+,}serverAuth"
+
+            # SAN must always be present in server certs and contain at least
+            # CN so we add it to the SAN list here
+            san_str="${csr_cn}"
         fi
         if yesanswer "No" "Should the cert be used for TLS client auth" ; then
             csr_eku="${csr_eku}${csr_eku:+,}clientAuth"
@@ -471,14 +475,15 @@ function create_request() {
         # if user certificate
 
         # Collect SAN from the user
-        read -e -p "Space separated list of SAN (DNS name or IPv4-address) to be added: " san_str
+        read -e -p "Space separated list of SAN (DNS name or IPv4-address) to be added: " user_sans
 
-        # If SAN are to be added, the CN must be repeted in the SAN for browsers
-        # to be happy (note: we might get the CN twice if the user adds it to the SAN
-        # manually)
-        if [[ -n ${san_str} ]] ; then
-            san_str="${csr_cn} ${san_str}"
-        fi
+        # Add user supplied SANs to the san list. Make sure to not get the CN
+        # twice if the user enters the CN as SAN
+        for user_san in ${user_sans} ; do
+            if [[ "${user_san}" != "${csr_cn}" ]] ; then
+                san_str="${san_str}${san_str:+ }${user_san}"
+            fi
+        done
 
         # Build correct SAN by prefixing the entries accordingly
         csr_san=$(prefix_san ${san_str})
