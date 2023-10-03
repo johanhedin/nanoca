@@ -244,3 +244,8 @@ handy when experimenting with smart cards. Run the following command:
 
 You will be asked for the Security Officer PIN to preform the erase. If you
 have lost it, the card is "lost" to.
+
+
+PKCS #11 related references
+====
+* [PKCS #11 Specification Version 3.1](https://docs.oasis-open.org/pkcs11/pkcs11-spec/v3.1/os/pkcs11-spec-v3.1-os.html)
