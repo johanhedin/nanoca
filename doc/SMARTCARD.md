@@ -15,7 +15,7 @@ outside the scope of this instruction.
 
 
 ## Prerequisites
-* Aventra MyEID smart card. Can be ordered from their [web shop](https://webservices.aventra.fi/webshop).
+* Aventra MyEID smart card. Can be ordered from their [web shop](https://shop.aventra.fi/en).
 * Supported smart card reader.
 * Running Fedora 41 installation.
 
