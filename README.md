@@ -1,5 +1,4 @@
-nanoca
-====
+# nanoca
 `nanoca` is a script that implement functions for a small file based X.509
 Certificate Authority, CA, that can be used on a home or private network.
 
@@ -12,9 +11,11 @@ A CA is represented by files in a directory and creating a new CA is as simple
 as creating a empty directory and run the `create` command (parameters for
 the CA will be asked for interactively):
 
-    $ mkdir myca
-    $ cd myca
-    $ nanoca create
+```console
+mkdir myca
+cd myca
+nanoca create
+```
 
 Since a CA is fully contained in a directory, it is possible to have as many
 CAs as needed by using different directories.
@@ -22,16 +23,19 @@ CAs as needed by using different directories.
 To use a specific CA, cd into the relevant directory and run the desired
 command, for example `list` to list certificates that the CA has created:
 
-    $ cd myca
-    $ nanoca list
+```console
+cd myca
+nanoca list
+```
 
 For instructions how to use `nanoca`, use `--help`:
 
-    $ nanoca --help
+```console
+nanoca --help
+```
 
 
-Some terminology
-====
+## Some terminology
 * CA - Certificate Authority.
 * CSR - Certificate Signing Request. A PEM encoded file representing a request
 for a certificate. Created by the requester and sent to the CA for signing.
@@ -43,13 +47,11 @@ a CA to inform the CA users about revoked certificates.
 revoked (CA internal operation).
 
 
-X.509 related references
-====
+## X.509 related references
 * [RFC 5280](https://tools.ietf.org/html/rfc5280)
 
 
-Requirements
-====
+## Requirements
 `nanoca` is written in bash and uses `openssl`, `awk`, `ls`, `cat` and `wc`.
-It has been tested on CentOS 6, CentOS 7, Fedora 38 and Raspberry Pi OS but
-should run on almost any Linux distribution that has `openssl >= 1.0.1e`.
+It has been tested on CentOS 6, CentOS 7, Rocky 9, Fedora 41 and Raspberry Pi OS
+but should run on almost any Linux distribution that has `openssl >= 1.0.1e`.
