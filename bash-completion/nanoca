@@ -1,0 +1,50 @@
+#!/bin/bash
+
+# bash completion for nanoca
+
+function _nanoca_complete() {
+    local cmd=""
+    if [[ ${COMP_CWORD} -gt 1 ]]; then
+        cmd="${COMP_WORDS[1]}"
+    fi
+
+    local cur=${COMP_WORDS[COMP_CWORD]}
+    echo "Debug: \$1=${1}|\$2=${2}|\$3=${3}|COMP_CWORD=${COMP_CWORD}|cur=${cur}|${COMP_WORDS[1]}" >> ~/debug.txt
+
+    if [[ ${COMP_CWORD} -eq 1 ]]; then
+        # Complete command
+        COMPREPLY=($(compgen -W "req sign re-sign revoke recreate-crl list create" "${2}"))
+    elif [[ ${COMP_CWORD} -eq 2 ]]; then
+        # Complete firsta argument to commands that take arguments
+        case "${cmd}" in
+            req)
+                COMPREPLY=($(compgen -o filenames -G "${2}*.key" "${2}"))
+                ;;
+            sign)
+                COMPREPLY=($(compgen -o filenames -G "${2}*.csr" "${2}"))
+                ;;
+            *)
+                COMPREPLY=()
+                ;;
+        esac
+    elif [[ ${COMP_CWORD} -eq 3 ]]; then
+        # Complete second argument to commands that take arguments
+        case "${cmd}" in
+            req)
+                COMPREPLY=($(compgen -o filenames -G "${2}*.csr" "${2}"))
+                ;;
+            sign)
+                COMPREPLY=($(compgen -o filenames -G "${2}*.crt" "${2}"))
+                ;;
+            *)
+                COMPREPLY=()
+                ;;
+        esac
+    else
+        COMPREPLY=()
+    fi
+}
+
+complete -F _nanoca_comp nanoca
+
+# vim: ft=sh

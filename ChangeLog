@@ -5,7 +5,8 @@
 - Support for setting RSA key size for CA and CSR
 - Initial support for RSASSA-PSS for CA and CSR creation
 - Initial support for RSASSA-PSS when signing a CSR
-- man page added
+- Added man page
+- Added bash completion
 
 * Fri Feb 26 2021 Johan Hedin - 1.3.0
 - Support for adding MS UPN SAN to personal CSR
