@@ -1,0 +1,122 @@
+.TH NANOCA 1 "30 December 2024" "1.4" "nanoca User Manual"
+
+.SH NAME
+nanoca \- simple X.509 Certificate Authority
+
+
+.SH SYNOPSIS
+.B nanoca
+[\fB\-h\fR]
+[\fB\-v\fR]
+[\fB\-d\fR|\fB\-\-dir\fR \fICADIR\fR]
+.IR command
+[args...]
+
+
+.SH DESCRIPTION
+.B nanoca
+is a simple openssl based X.509 CA using files on disk. It can
+create and sign signing requests and create a CRL with revoked certificates.
+Multiple CAs can easily be created and are completely represented by files
+in user specified directories, one per CA. Se available commands below.
+
+
+.SH OPTIONS
+.TP
+.BR \-d ", " \-\-dir =\fICADIR\fR
+Path to where the CA resides. Defaults to current working directory if not given.
+
+.TP
+.BR \-h ", " \-\-help
+Show help and then exit.
+
+.TP
+.BR \-v ", " \-\-version
+Show version and exit.
+
+
+.SH COMMANDS
+Below is the list of commands that \fBnanoca\fR accepts and their arguments.
+
+.TP
+.BR create
+Create a new CA in the current working directory (or in \fICADIR\fR if given by
+the \fB--dir\fR option). Configuration will be asked for interactively. The
+directory must be empty.
+
+.TP
+.BR list
+List certificates that the CA has created.
+
+.TP
+\fBsign\fR \fICSR\fR [\fICRT\fR]
+Create a new certificate by signing the signing request pointed to by \fICSR\fR.
+\fICSR\fR must be a path to a PEM encoded file containing the \fICSR\fR and must
+end with \'.csr\'. \fICRT\fR is the path to where the new certificate will be
+written. If left out, defaults to \fICSR\fR but with the \'.csr\' extension
+replaced with \'.crt\'.
+
+.TP
+\fBre-sign\fR \fISERIAL\fR \fICRT\fR
+Create a new certificate by signing a previous signing request re-using the
+\fICSR\fR that is cached inside the CA. \fISERIAL\fR must be the serial number
+for an existing certificate and \fICRT\fR the path to where the new certificate
+will be written. Use the \fBlist\fR command to see available certificates and
+their serial numbers.
+
+.TP
+\fBrevoke\fR \fISERIAL\fR
+Revoke a previously created certificate. \fISERIAL\fR must be the serial number
+for an existing certificate. Use the list command to see available certificates
+and their serial numbers. Note: The CRL will not be updated. The \fBrecreate-crl\fR
+command need to be run to generate a new CRL.
+
+.TP
+.BR recreate-crl
+Recreate the CRL. Must be used regularly since a CRL has a limited lifespan. If
+CRLs for the CA is to be used, this command must be run at even intervals and
+the new CRL to be distributed to everyone using the CA.
+
+.TP
+\fBreq\fR \fIKEY\fR \fICSR\fR
+Create a new Certificate Signing Request. The request will use the PEM encoded
+key file pointed to by \fIKEY\fR. If the file does not exist, a new key will be
+created and written to the file pointed to by \fIKEY\fR. \fICSR\fR should
+be a path to where the request will be written. The \fIKEY\fR argument can also
+be a PKCS11 URI pointing to a key on a hardware device like a smart card. If
+you only have one smart card inserted in the computer, the string \"pkcs11:\"
+is sufficient. Request parameters will will be asked for interactively.
+
+Note 1: This command does not require a previously setup CA and can be run from
+any working directory.
+
+Note 2: Smart card support requires that openssl has
+support for engine and that the openssl pkcs11 engine is installed. You also
+need a properly setup smart card.
+
+
+.SH EXAMPLES
+Below are some examples of how to use \fBnanoca\fR.
+
+Create a new CA:
+    $ mkdir my_ca
+    $ cd my_ca
+    $ nanoca create
+
+Sign the CSR /tmp/mycert.csr and write the cert to /tmp/mycert.crt:
+    $ nanoca --dir=my_ca sign /tmp/mycert.csr /tmp/mycert.crt
+
+List certificates that the CA has signed:
+    $ cd my_ca
+    $ nanoca list
+
+Revoke certificate with serial number 05:
+    $ cd my_ca
+    $ nanoca revoke 05
+
+Create a new key and CSR in /tmp/mycert.key and /tmp/mycert.csr:
+    $ nanoca req /tmp/mycert.key /tmp/mycert.csr
+
+
+.SH SEE ALSO
+\fIhttps://github.com/johanhedin/nanoca\fR
