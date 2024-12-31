@@ -7,6 +7,7 @@
 - Initial support for RSASSA-PSS when signing a CSR
 - Added man page
 - Added bash completion
+- Added Makefile for install/uinstall support
 
 * Fri Feb 26 2021 Johan Hedin - 1.3.0
 - Support for adding MS UPN SAN to personal CSR
