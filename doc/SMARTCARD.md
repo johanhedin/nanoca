@@ -55,8 +55,9 @@ So, to start with, come up with one PIN and corresponding unlock code, PUK, for
 the Security Officer. Write them down somewhere safe or be confident that you
 remember them. Do the same for the User, one PIN and one PUK.
 
-> Note 1: If you loose the Security Officer PIN, you will not be able to wipe
-the card and start over or provision new PINs, basically bricking the the card.
+> [!NOTE]
+> If you loose the Security Officer PIN, you will not be able to wipe
+> the card and start over or provision new PINs, basically bricking the the card.
 
 Insert the card into the card reader and make sure that this card is the only
 PKCS11/PIV card/token connected to your computer. Then run the following:
@@ -142,9 +143,10 @@ tie this key to the one and only User PIN object that was created in the
 initialization step. The `--key-usage` must match the key usage set in the
 X.509 certificate (nanoca sets it like above).
 
-> Note 2: The keypair will automatically be assigned a unique ID calculated from
-the public key. If you like to set your own ID do that with the `--id <ID>`
-option where `<ID>` is a hex value, e.g. `--id 45fa23`.
+> [!NOTE]
+> The keypair will automatically be assigned a unique ID calculated from
+> the public key. If you like to set your own ID do that with the `--id <ID>`
+> option where `<ID>` is a hex value, e.g. `--id 45fa23`.
 
 To list the key (both the private part and the public part), use:
 
@@ -205,11 +207,12 @@ will be asked for the User PIN to complete the operation. When completed
 without errors, the file `/tmp/my_name.crt` is not needed any more and can be
 removed.
 
-> Note 3: The certificate object will be assigned an ID calculated from the
-public key inside the certificate. Since this is the same public key as on the
-card, the calculated ID will match that of the existing public key. If you
-chose to set your own ID for your key, you can do the same here with the
-`--id <ID>` option.
+> [!NOTE]
+> The certificate object will be assigned an ID calculated from the
+> public key inside the certificate. Since this is the same public key as on the
+> card, the calculated ID will match that of the existing public key. If you
+> chose to set your own ID for your key, you can do the same here with the
+> `--id <ID>` option.
 
 
 The certificate and key on the card can be listed with:
@@ -249,7 +252,8 @@ pkcs15-init --delete-objects privkey --id <ID from above>
 
 And start over creating new objects.
 
-> Note 4: If you remove the privkey, the pubkey becomes useless.
+> [!WARNING]
+> If you remove the privkey, the pubkey becomes useless.
 
 
 ## Change PIN
