@@ -22,7 +22,7 @@
 # Requires bash >= 4, openssl >= 1.0.1e, awk, ls, cat and wc.
 #
 # Created: 2020-07-10
-# Updated: 2023-09-24
+# Updated: 2025-01-01
 #
 # TODO:
 #  - Take care of stderr from openssl and print that on error
@@ -40,7 +40,7 @@
 #
 
 # Basic constants
-VERSION="1.3.99rc5"
+VERSION="1.4.0"
 BASENAME="$(basename $0)"
 OPENSSL="/usr/bin/openssl"
 AWK="/usr/bin/awk"

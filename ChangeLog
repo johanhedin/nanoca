@@ -1,4 +1,4 @@
-* Day Mon XX YYYY Johan Hedin - 1.4.0 (not released)
+* Wed Jan 01 2025 Johan Hedin - 1.4.0
 - Support for older openssl. New min requirement is 1.0.1e
 - 2048 bits as default RSA key size to support a wider user base
 - Smart card documentation cleanups and clarifications
@@ -7,7 +7,7 @@
 - Initial support for RSASSA-PSS when signing a CSR
 - Added man page
 - Added bash completion
-- Added Makefile for install/uinstall support
+- Added Makefile for install/uinstall
 
 * Fri Feb 26 2021 Johan Hedin - 1.3.0
 - Support for adding MS UPN SAN to personal CSR
@@ -16,7 +16,7 @@
 - Support for key via PKCS11 URI (typically smartcard) when creating CSR
 
 * Fri Jul 17 2020 Johan Hedin - 1.1.0
-- Added support personal CSRs (ask for GN, SN, UID and E-mail)
+- Added support for personal CSRs (ask for GN, SN, UID and E-mail)
 
 * Thu Jul 16 2020 Johan Hedin - 1.0.0
 - First release
