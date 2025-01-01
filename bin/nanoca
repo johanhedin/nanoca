@@ -40,7 +40,7 @@
 #
 
 # Basic constants
-VERSION="1.4.0.99rc1"
+VERSION="1.4.1"
 BASENAME="$(basename $0)"
 OPENSSL="/usr/bin/openssl"
 AWK="/usr/bin/awk"

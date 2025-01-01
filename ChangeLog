@@ -1,5 +1,5 @@
-* Day Mon DD YYYY Johan Hedin - 1.4.1 (not released yet)
-- Placeholder
+* Wed Jan 01 2025 Johan Hedin - 1.4.1
+- Remove debug printout
 
 * Wed Jan 01 2025 Johan Hedin - 1.4.0
 - Support for older openssl. New min requirement is 1.0.1e
