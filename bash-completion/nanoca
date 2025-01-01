@@ -9,7 +9,6 @@ function _nanoca_complete() {
     fi
 
     local cur=${COMP_WORDS[COMP_CWORD]}
-    echo "Debug: \$1=${1}|\$2=${2}|\$3=${3}|COMP_CWORD=${COMP_CWORD}|cur=${cur}|${COMP_WORDS[1]}" >> ~/debug.txt
 
     if [[ ${COMP_CWORD} -eq 1 ]]; then
         # Complete command
