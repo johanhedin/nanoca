@@ -45,6 +45,6 @@ function _nanoca_complete() {
     fi
 }
 
-complete -F _nanoca_comp nanoca
+complete -F _nanoca_complete nanoca
 
 # vim: ft=sh
