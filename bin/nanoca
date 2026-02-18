@@ -22,7 +22,7 @@
 # Requires bash >= 4, openssl >= 1.0.1e, awk, ls, cat and wc.
 #
 # Created: 2020-07-10
-# Updated: 2025-01-01
+# Updated: 2026-02-18
 #
 # TODO:
 #  - Take care of stderr from openssl and print that on error
@@ -40,7 +40,7 @@
 #
 
 # Basic constants
-VERSION="1.4.1"
+VERSION="1.4.2"
 BASENAME="$(basename $0)"
 OPENSSL="/usr/bin/openssl"
 AWK="/usr/bin/awk"
@@ -74,6 +74,9 @@ CSR_RSA_SSA_DEFAULT="PKCS1-V1.5"
 
 # CRL lifespan (next update) (one month)
 CRL_DAYS_DEFAULT="30"
+
+# Global variable to hold "all yes" information
+all_yes=0
 
 
 # Global variable that hold the name of a temporary file
@@ -756,22 +759,24 @@ function sign_request() {
         out_crt="${in_csr%.csr}.crt"
     fi
 
-    read -e -i "${crt_rsa_ssa}" -p "RSA signature scheme for the certificate [PKCS1-V1.5/PSS]: " crt_rsa_ssa
-    crt_rsa_ssa="${crt_rsa_ssa^^}"
-    if [[ "${crt_rsa_ssa}" != "PKCS1-V1.5" && "${crt_rsa_ssa}" != "PSS" ]] ; then
-        echo "Error: RSA signature scheme must be PKCS1-V1.5 or PSS." >&2
-        return 1
-    fi
-
-    # Ask for confirmation for the signing
-    if ! yesanswer "No" "Create signed certificate '${out_crt}' from request '${in_csr}'" ; then
-        return 1
-    fi
-
-    # Check if out file exist and if it does, ask for confirmation to overwrite
-    if [[ -f "${out_crt}" ]] ; then
-        if ! yesanswer "No" "Warning: '${out_crt}' already exist. Overwrite" ; then
+    if [[ ${all_yes} -eq 0 ]] ; then
+        read -e -i "${crt_rsa_ssa}" -p "RSA signature scheme for the certificate [PKCS1-V1.5/PSS]: " crt_rsa_ssa
+        crt_rsa_ssa="${crt_rsa_ssa^^}"
+        if [[ "${crt_rsa_ssa}" != "PKCS1-V1.5" && "${crt_rsa_ssa}" != "PSS" ]] ; then
+            echo "Error: RSA signature scheme must be PKCS1-V1.5 or PSS." >&2
             return 1
+        fi
+
+        # Ask for confirmation for the signing
+        if ! yesanswer "No" "Create signed certificate '${out_crt}' from request '${in_csr}'" ; then
+            return 1
+        fi
+
+        # Check if out file exist and if it does, ask for confirmation to overwrite
+        if [[ -f "${out_crt}" ]] ; then
+            if ! yesanswer "No" "Warning: '${out_crt}' already exist. Overwrite" ; then
+                return 1
+            fi
         fi
     fi
 
@@ -1040,6 +1045,8 @@ function print_usage() {
 	Options:
 	  -h, --help         Show this help and then exit
 	  -v, --version      Print version and then exit
+	  -y, --yes          Answer yes to all questions. Usefull for non-interactive use.
+	                     Only supported for the sign command at the moment
 	  -d, --dir=CADIR    Path to where the CA resides. Defaults to current
 	                     working directory if not given
 	
@@ -1086,6 +1093,10 @@ while [[ "$1" != "" ]] ; do
         -v|--version)
             echo "${VERSION}"
             exit 0
+            ;;
+
+        -y|--yes)
+            all_yes=1
             ;;
 
         -d) shift
