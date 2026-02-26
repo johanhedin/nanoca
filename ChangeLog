@@ -1,6 +1,7 @@
 * Thu Feb 26 2026 Johan Hedin - 1.4.2 (not released yet)
 - Add support for non-interactive signing
 - Allow creating CSR with empty subject as long as SAN exist
+- Use first SAN as CN when signing if subject in CSR is empty
 
 * Wed Jan 01 2025 Johan Hedin - 1.4.1
 - Remove debug printout

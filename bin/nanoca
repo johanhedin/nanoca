@@ -740,6 +740,7 @@ function sign_request() {
     local crt_rsa_ssa="PKCS1-V1.5"
     local crt_rsa_padding_mode=""
     local crt_rsa_pss_saltlen=""
+    local synthesized_subj=""
 
     local ca_key_file="${ca_dir}/private/${ca_name}.key"
     local ca_cert_file="${ca_dir}/public/${ca_name}.crt"
@@ -835,6 +836,13 @@ function sign_request() {
         crt_rsa_pss_saltlen=""
     fi
 
+    # Check the CSR and if empty subject, synthezise a subject from SAN
+    if [[ -z "$(${OPENSSL} req -noout -subject -in ${in_csr} | sed 's/subject=//g')" ]] ; then
+        # Extract CN from first SAN in csr
+        local first_san="$(${OPENSSL} req -noout -text -in cb.csr | ${AWK} -F'DNS:' '/DNS:/ { sub(",", ""); print $2 }')"
+        synthesized_subj="/CN=${first_san}"
+    fi
+
     # Save the CSR
     serial=$(cat ${ca_dir}/private/crtserial)
     private_csr="${ca_dir}/csrs/${serial}.csr"
@@ -851,6 +859,7 @@ function sign_request() {
         ${crt_rsa_pss_saltlen:+-sigopt} ${crt_rsa_pss_saltlen} \
         -utf8 \
         -notext \
+        ${synthesized_subj:+-subj} ${synthesized_subj} \
         -batch \
         -in "${in_csr}" \
         -out "${out_crt}" \
