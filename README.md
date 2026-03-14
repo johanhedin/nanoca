@@ -52,6 +52,6 @@ revoked (CA internal operation).
 
 
 ## Requirements
-`nanoca` is written in bash and uses `openssl`, `awk`, `ls`, `cat` and `wc`.
-It has been tested on CentOS 6, CentOS 7, Rocky 9, Fedora 41 and Raspberry Pi OS
+`nanoca` is written in bash and uses `openssl`, `awk`, `ls`, `cat`, `sed` and `wc`.
+It has been tested on CentOS 6, CentOS 7, Rocky 9, Fedora 43 and Raspberry Pi OS
 but should run on almost any Linux distribution that has `openssl >= 1.0.1e`.
