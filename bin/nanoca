@@ -730,7 +730,7 @@ function sign_request() {
     local ca_dir="$1"
     local ca_name="$2"
     local in_csr="$3"
-    local out_crt="$4"
+    local out_crt="${4:-}"
     local serial=""
     local private_csr=""
     local cert_days="${CERT_DAYS_DEFAULT}"
@@ -1089,7 +1089,21 @@ trap exit_cleanup EXIT
 # Setup CA path
 ca_path="$(pwd)"
 
-# Initialize variables
+# Read settings if available
+if [[ -f "${ca_path}/private/settings.cfg" ]] ; then
+    source "${ca_path}/private/settings.cfg"
+fi
+
+# Initialize variables from defaults if not set from settings.cfg or environment
+CA_DAYS="${CA_DAYS:-${CA_DAYS_DEFAULT}}"
+CA_RSA_KEYSIZE="${CA_RSA_KEYSIZE:-${CA_RSA_KEYSIZE_DEFAULT}}"
+CA_KEY_PW_PROTECTED="${CA_KEY_PW_PROTECTED:-${CA_KEY_PW_PROTECTED_DEAFULT}}"
+CA_RSA_SSA="${CA_RSA_SSA:-${CA_RSA_SSA_DEFAULT}}"
+CERT_DAYS="${CERT_DAYS:-${CERT_DAYS_DEFAULT}}"
+CERT_RSA_KEYSIZE="${CERT_RSA_KEYSIZE:-${CERT_RSA_KEYSIZE_DEFAULT}}"
+CERT_KEY_PW_PROTECTED="${CERT_KEY_PW_PROTECTED:-${CERT_KEY_PW_PROTECTED_DEAFULT}}"
+CSR_RSA_SSA="${CSR_RSA_SSA:-${CSR_RSA_SSA_DEFAULT}}"
+CRL_DAYS="${CRL_DAYS:-${CRL_DAYS_DEFAULT}}"
 all_yes=0
 
 # Read general options
@@ -1148,7 +1162,7 @@ if [[ -z "${ca_name}" ]] ; then
     exit 1
 fi
 
-ret=0
+declare -i ret=0
 case "${command}" in
     sign)
         sign_request "${ca_path}" "${ca_name}" $@
