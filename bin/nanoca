@@ -52,7 +52,7 @@ declare -r CA_DAYS_DEFAULT="7300"
 declare -r CA_RSA_KEYSIZE_DEFAULT="2048"
 
 # CA RSA key protected by password [Yes/No] (No)
-declare -r CA_KEY_PW_PROTECTED_DEAFULT="No"
+declare -r CA_KEY_PW_PROTECTED_DEFAULT="No"
 
 # CA RSA Signature Scheme [PKCS1-V1.5/PSS] (PKCS1-V1.5)
 declare -r CA_RSA_SSA_DEFAULT="PKCS1-V1.5"
@@ -64,7 +64,7 @@ declare -r CERT_DAYS_DEFAULT="365"
 declare -r CERT_RSA_KEYSIZE_DEFAULT="2048"
 
 # Certificate RSA key protected by password [Yes/No] (No)
-declare -r CERT_KEY_PW_PROTECTED_DEAFULT="No"
+declare -r CERT_KEY_PW_PROTECTED_DEFAULT="No"
 
 # CSR RSA Signature Scheme [PKCS1-V1.5/PSS] (PKCS1-V1.5)
 declare -r CSR_RSA_SSA_DEFAULT="PKCS1-V1.5"
@@ -217,10 +217,10 @@ function create_ca() {
     local ca_o=""
     local ca_ou=""
     local ca_cn=""
-    local ca_days="${CA_DAYS_DEFAULT}"
-    local ca_rsa_keysize="${CA_RSA_KEYSIZE_DEFAULT}"
-    local ca_rsa_ssa="${CA_RSA_SSA_DEFAULT}"
-    local ca_key_pw_protected="${CA_KEY_PW_PROTECTED_DEAFULT}"
+    local ca_days="${CA_DAYS}"
+    local ca_rsa_keysize="${CA_RSA_KEYSIZE}"
+    local ca_rsa_ssa="${CA_RSA_SSA}"
+    local ca_key_pw_protected="${CA_KEY_PW_PROTECTED}"
     local ca_rsa_padding_mode=""
     local ca_rsa_pss_saltlen=""
     local ret=""
@@ -403,9 +403,9 @@ function create_request() {
     local csr_ku=""
     local csr_eku=""
     local csr_san=""
-    local crt_rsa_keysize="${CERT_RSA_KEYSIZE_DEFAULT}"
-    local csr_rsa_ssa="${CSR_RSA_SSA_DEFAULT}"
-    local crt_key_pw_protected="${CERT_KEY_PW_PROTECTED_DEAFULT}"
+    local crt_rsa_keysize="${CERT_RSA_KEYSIZE}"
+    local csr_rsa_ssa="${CSR_RSA_SSA}"
+    local crt_key_pw_protected="${CERT_KEY_PW_PROTECTED}"
     local csr_rsa_padding_mode=""
     local csr_rsa_pss_saltlen=""
     local res=""
@@ -733,7 +733,7 @@ function sign_request() {
     local out_crt="${4:-}"
     local serial=""
     local private_csr=""
-    local cert_days="${CERT_DAYS_DEFAULT}"
+    local cert_days="${CERT_DAYS}"
     local crt_rsa_ssa="PKCS1-V1.5"
     local crt_rsa_padding_mode=""
     local crt_rsa_pss_saltlen=""
@@ -931,7 +931,7 @@ function recreate_crl() {
     local ca_key_file="${ca_dir}/private/${ca_name}.key"
     local ca_cert_file="${ca_dir}/public/${ca_name}.crt"
     local ca_crl_file="${ca_dir}/public/${ca_name}.crl"
-    local crl_days="${CRL_DAYS_DEFAULT}"
+    local crl_days="${CRL_DAYS}"
 
     # TODO: Add support for asking for crl_days
 
@@ -1097,11 +1097,11 @@ fi
 # Initialize variables from defaults if not set from settings.cfg or environment
 CA_DAYS="${CA_DAYS:-${CA_DAYS_DEFAULT}}"
 CA_RSA_KEYSIZE="${CA_RSA_KEYSIZE:-${CA_RSA_KEYSIZE_DEFAULT}}"
-CA_KEY_PW_PROTECTED="${CA_KEY_PW_PROTECTED:-${CA_KEY_PW_PROTECTED_DEAFULT}}"
+CA_KEY_PW_PROTECTED="${CA_KEY_PW_PROTECTED:-${CA_KEY_PW_PROTECTED_DEFAULT}}"
 CA_RSA_SSA="${CA_RSA_SSA:-${CA_RSA_SSA_DEFAULT}}"
 CERT_DAYS="${CERT_DAYS:-${CERT_DAYS_DEFAULT}}"
 CERT_RSA_KEYSIZE="${CERT_RSA_KEYSIZE:-${CERT_RSA_KEYSIZE_DEFAULT}}"
-CERT_KEY_PW_PROTECTED="${CERT_KEY_PW_PROTECTED:-${CERT_KEY_PW_PROTECTED_DEAFULT}}"
+CERT_KEY_PW_PROTECTED="${CERT_KEY_PW_PROTECTED:-${CERT_KEY_PW_PROTECTED_DEFAULT}}"
 CSR_RSA_SSA="${CSR_RSA_SSA:-${CSR_RSA_SSA_DEFAULT}}"
 CRL_DAYS="${CRL_DAYS:-${CRL_DAYS_DEFAULT}}"
 all_yes=0
