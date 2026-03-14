@@ -239,14 +239,14 @@ function create_ca() {
         return ${ret}
     fi
 
-    echo "Enter CA Subject (the CN attribute is mandatory, others can be left out"
-    echo "by entering a empty value):"
-    read -e -i "${ca_c}"  -p "ISO 3166-1 alpha-2 Country Code (C): " ca_c
-    read -e -i "${ca_st}" -p "State or Province (ST): " ca_st
-    read -e -i "${ca_l}"  -p "Location or City (L): " ca_l
-    read -e -i "${ca_o}"  -p "Organization (O): " ca_o
-    read -e -i "${ca_ou}" -p "Organizational Unit (OU): " ca_ou
-    read -e -i "${ca_cn}" -p "Common Name (CN): " ca_cn
+    [[ ${all_yes} -eq 0 ]] && echo "Enter CA Subject (the CN attribute is mandatory, others can be left out"
+    [[ ${all_yes} -eq 0 ]] && echo "by entering a empty value):"
+    [[ ${all_yes} -eq 0 ]] && read -e -i "${ca_c}"  -p "ISO 3166-1 alpha-2 Country Code (C): " ca_c
+    [[ ${all_yes} -eq 0 ]] && read -e -i "${ca_st}" -p "State or Province (ST): " ca_st
+    [[ ${all_yes} -eq 0 ]] && read -e -i "${ca_l}"  -p "Location or City (L): " ca_l
+    [[ ${all_yes} -eq 0 ]] && read -e -i "${ca_o}"  -p "Organization (O): " ca_o
+    [[ ${all_yes} -eq 0 ]] && read -e -i "${ca_ou}" -p "Organizational Unit (OU): " ca_ou
+    [[ ${all_yes} -eq 0 ]] && read -e -i "${ca_cn}" -p "Common Name (CN): " ca_cn
 
     # We have some strict requirements on the CN attribute since
     # it is used in the file names for the CA certificate and key
@@ -255,30 +255,30 @@ function create_ca() {
         return ${ret}
     fi
 
-    echo "Enter CA cryptographic settings:"
-    read -e -i "${ca_rsa_keysize}" -p "RSA keysize in bits [2048/4096]: " ca_rsa_keysize
+    [[ ${all_yes} -eq 0 ]] && echo "Enter CA cryptographic settings:"
+    [[ ${all_yes} -eq 0 ]] && read -e -i "${ca_rsa_keysize}" -p "RSA keysize in bits [2048/4096]: " ca_rsa_keysize
     if [[ "${ca_rsa_keysize}" != "2048" && "${ca_rsa_keysize}" != "4096" ]] ; then
         echo "Error: RSA keysize must be 2048 or 4096." >&2
         return ${ret}
     fi
 
-    read -e -i "${ca_rsa_ssa}" -p "RSA signature scheme [PKCS1-V1.5/PSS]: " ca_rsa_ssa
+    [[ ${all_yes} -eq 0 ]] && read -e -i "${ca_rsa_ssa}" -p "RSA signature scheme [PKCS1-V1.5/PSS]: " ca_rsa_ssa
     ca_rsa_ssa="${ca_rsa_ssa,,}"
     if [[ "${ca_rsa_ssa}" != "pkcs1-v1.5" && "${ca_rsa_ssa}" != "pss" ]] ; then
         echo "Error: RSA signature scheme must be PKCS1-V1.5 or PSS." >&2
         return ${ret}
     fi
 
-    if yesanswer "${ca_key_pw_protected}" "Should the CA private key be pass phrase protected" ; then
+    if [[ ${all_yes} -eq 0 ]] && yesanswer "${ca_key_pw_protected}" "Should the CA private key be pass phrase protected" ; then
         ca_key_pw_protected=""
     else
         unset ca_key_pw_protected
     fi
 
-    echo "Enter CA lifespan settings:"
-    read -e -i "${ca_years}"            -p "CA lifespan (years): " ca_years
-    read -e -i "${ca_signed_cert_days}" -p "Signed certificate lifespan (days): " ca_signed_cert_days
-    read -e -i "${crl_days}"            -p "CRL lifespan (days): " crl_days
+    [[ ${all_yes} -eq 0 ]] && echo "Enter CA lifespan settings:"
+    [[ ${all_yes} -eq 0 ]] && read -e -i "${ca_years}"            -p "CA lifespan (years): " ca_years
+    [[ ${all_yes} -eq 0 ]] && read -e -i "${ca_signed_cert_days}" -p "Signed certificate lifespan (days): " ca_signed_cert_days
+    [[ ${all_yes} -eq 0 ]] && read -e -i "${crl_days}"            -p "CRL lifespan (days): " crl_days
 
     # Build CA subject string
     local ca_subject=""
@@ -294,7 +294,7 @@ function create_ca() {
     local ca_basename="${ca_basename// /-}"
 
     # Ask for verification
-    if ! yesanswer "No" "Create new CA in ${ca_dir}" ; then
+    if [[ ${all_yes} -eq 0 ]] && ! yesanswer "No" "Create new CA in ${ca_dir}" ; then
         return ${ret}
     fi
 
