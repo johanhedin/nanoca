@@ -4,6 +4,8 @@
 - Use first SAN as CN when signing if subject in CSR is empty
 - Ask for lifespan for CA, certs and CRL during CA creation
 - Save cert and CRL lifespan as settings in a CA
+- Add support for picking up CA settings from environment variables
+- Add support for non-interactive creation of CA (--yes)
 
 * Wed Jan 01 2025 Johan Hedin - 1.4.1
 - Remove debug printout
