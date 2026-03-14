@@ -1,7 +1,9 @@
-* Thu Feb 26 2026 Johan Hedin - 1.4.2 (not released yet)
+* Sat Mar 14 2026 Johan Hedin - 1.5.0 (not released yet)
 - Add support for non-interactive signing
 - Allow creating CSR with empty subject as long as SAN exist
 - Use first SAN as CN when signing if subject in CSR is empty
+- Ask for lifespan for CA, certs and CRL during CA creation
+- Save cert and CRL lifespan as settings in a CA
 
 * Wed Jan 01 2025 Johan Hedin - 1.4.1
 - Remove debug printout
