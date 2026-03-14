@@ -1210,6 +1210,15 @@ case "${command}" in
         sign_request "${ca_path}" "${ca_name}" $@
         ret=$?
         ;;
+    re-sign)
+        if [[ -z "${2:-}" ]] ; then
+            echo "Error: No output filename given." >&2
+            ret=1
+        else
+            sign_request "${ca_path}" "${ca_name}" "${ca_path}/csrs/$1.csr" $2
+            ret=$?
+        fi
+        ;;
     list)
         list_certs "${ca_path}" "${ca_name}" $@
         ret=$?
