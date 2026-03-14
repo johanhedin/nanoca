@@ -40,40 +40,40 @@
 #
 
 # Basic constants
-VERSION="1.4.2"
-OPENSSL="/usr/bin/openssl"
-AWK="/usr/bin/awk"
+declare -r VERSION="1.4.2"
+declare -r OPENSSL="/usr/bin/openssl"
+declare -r AWK="/usr/bin/awk"
 
 # CA lifespan (20 years)
-CA_DAYS_DEFAULT="7300"
+declare -r CA_DAYS_DEFAULT="7300"
 
 # CA RSA key size (2048 bits)
-CA_RSA_KEYSIZE_DEFAULT="2048"
+declare -r CA_RSA_KEYSIZE_DEFAULT="2048"
 
 # CA RSA key protected by password [Yes/No] (No)
-CA_KEY_PW_PROTECTED_DEAFULT="No"
+declare -r CA_KEY_PW_PROTECTED_DEAFULT="No"
 
 # CA RSA Signature Scheme [PKCS1-V1.5/PSS] (PKCS1-V1.5)
-CA_RSA_SSA_DEFAULT="PKCS1-V1.5"
+declare -r CA_RSA_SSA_DEFAULT="PKCS1-V1.5"
 
 # Signed certificate lifespan (1 year)
-CERT_DAYS_DEFAULT="365"
+declare -r CERT_DAYS_DEFAULT="365"
 
 # Certificate RSA key size for a newly created key (2048 bits)
-CERT_RSA_KEYSIZE_DEFAULT="2048"
+declare -r CERT_RSA_KEYSIZE_DEFAULT="2048"
 
 # Certificate RSA key protected by password [Yes/No] (No)
-CERT_KEY_PW_PROTECTED_DEAFULT="No"
+declare -r CERT_KEY_PW_PROTECTED_DEAFULT="No"
 
 # CSR RSA Signature Scheme [PKCS1-V1.5/PSS] (PKCS1-V1.5)
-CSR_RSA_SSA_DEFAULT="PKCS1-V1.5"
+declare -r CSR_RSA_SSA_DEFAULT="PKCS1-V1.5"
 
 # CRL lifespan (next update) (one month)
-CRL_DAYS_DEFAULT="30"
+declare -r CRL_DAYS_DEFAULT="30"
+
 
 # Global variable to hold "all yes" information
 all_yes=0
-
 
 # Global variable that hold the name of a temporary file
 openssl_cfg=""
