@@ -1099,6 +1099,22 @@ function print_usage() {
 } # print_usage
 
 
+# Function to print settings. Used for debug
+function print_settings() {
+    cat <<- EOF
+	CA_YEARS=${CA_YEARS}
+	CA_RSA_KEYSIZE=${CA_RSA_KEYSIZE}
+	CA_KEY_PW_PROTECTED=${CA_KEY_PW_PROTECTED}
+	CA_RSA_SSA=${CA_RSA_SSA}
+	CERT_RSA_KEYSIZE=${CERT_RSA_KEYSIZE}
+	CERT_KEY_PW_PROTECTED=${CERT_KEY_PW_PROTECTED}
+	CSR_RSA_SSA=${CSR_RSA_SSA}
+	CA_SIGNED_CERT_DAYS=${CA_SIGNED_CERT_DAYS}
+	CA_CRL_DAYS=${CA_CRL_DAYS}
+	EOF
+} # print_settings
+
+
 # Main program starts here.
 
 # Install exit handler (used to clean up any temporary file created)
@@ -1197,6 +1213,9 @@ case "${command}" in
     recreate-crl)
         recreate_crl "${ca_path}" "${ca_name}" $@
         ret=$?
+        ;;
+    debug)
+        print_settings
         ;;
     *)
         echo "Error: Unknown command: ${command}" >&2
