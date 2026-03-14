@@ -30,7 +30,6 @@
 #  - Add support for creating intermediate CAs and for signing CA certs
 #  - Make sure that spaces in file names are properly handled
 #  - Make criticallity of "CA:true" configurable for the CA
-#  - Make CA lifespan configurable when creating the CA
 #  - Make CRT lifespan configurable when signing a CSR. Cap to CA lifespan
 #  - Make RSASSA-PSS signature for CSR work when using keys on PKCS11 tokens
 #  - Add printout of how the signed certificate is going to look like
@@ -41,7 +40,7 @@
 set -euo pipefail
 
 # Basic constants
-declare -r VERSION="1.4.2"
+declare -r VERSION="1.5.0"
 declare -r OPENSSL="/usr/bin/openssl"
 declare -r AWK="/usr/bin/awk"
 
@@ -211,14 +210,14 @@ function get_ca_name() {
 # Create a new CA in the directory pointed to by $1
 function create_ca() {
     local ca_dir="$1"
-    local ca_c=""
-    local ca_st=""
-    local ca_l=""
-    local ca_o=""
-    local ca_ou=""
-    local ca_cn=""
+    local ca_c="${CA_C}"
+    local ca_st="${CA_ST}"
+    local ca_l="${CA_L}"
+    local ca_o="${CA_O}"
+    local ca_ou="${CA_OU}"
+    local ca_cn="${CA_CN}"
     local -i ca_years=${CA_YEARS}
-    local -i ca_days=""
+    local -i ca_days=0
     local -i ca_rsa_keysize=${CA_RSA_KEYSIZE}
     local ca_rsa_ssa="${CA_RSA_SSA}"
     local ca_key_pw_protected="${CA_KEY_PW_PROTECTED}"
@@ -226,18 +225,18 @@ function create_ca() {
     local ca_rsa_pss_saltlen=""
     local -i ca_signed_cert_days=${CA_SIGNED_CERT_DAYS}
     local -i crl_days=${CA_CRL_DAYS}
-    local ret=""
+    local -i ret=1
 
     # Verify that the directory for the new CA exists and is empty
     if [[ -d "${ca_dir}" ]] ; then
         # Requested CA directory exist. Verify that it is empty
         if [[ -n "$(ls -A "${ca_dir}")" ]] ; then
             echo "Error: Directory '${ca_dir}' is not empty." >&2
-            return 1
+            return ${ret}
         fi
     else
         echo "Error: Directory '${ca_dir}' does not exist." >&2
-        return 1
+        return ${ret}
     fi
 
     echo "Enter CA Subject (the CN attribute is mandatory, others can be left out"
@@ -253,21 +252,21 @@ function create_ca() {
     # it is used in the file names for the CA certificate and key
     if [[ -z "${ca_cn}" || ! "${ca_cn}" =~ ^[a-zA-Z0-9\ \-]+$ ]] ; then
         echo "Error: Common Name for the CA must be non-empty and must satisfy ^[a-zA-Z0-9 -]+\$." >&2
-        return 1
+        return ${ret}
     fi
 
     echo "Enter CA cryptographic settings:"
     read -e -i "${ca_rsa_keysize}" -p "RSA keysize in bits [2048/4096]: " ca_rsa_keysize
     if [[ "${ca_rsa_keysize}" != "2048" && "${ca_rsa_keysize}" != "4096" ]] ; then
         echo "Error: RSA keysize must be 2048 or 4096." >&2
-        return 1
+        return ${ret}
     fi
 
     read -e -i "${ca_rsa_ssa}" -p "RSA signature scheme [PKCS1-V1.5/PSS]: " ca_rsa_ssa
     ca_rsa_ssa="${ca_rsa_ssa,,}"
     if [[ "${ca_rsa_ssa}" != "pkcs1-v1.5" && "${ca_rsa_ssa}" != "pss" ]] ; then
         echo "Error: RSA signature scheme must be PKCS1-V1.5 or PSS." >&2
-        return 1
+        return ${ret}
     fi
 
     if yesanswer "${ca_key_pw_protected}" "Should the CA private key be pass phrase protected" ; then
@@ -296,7 +295,7 @@ function create_ca() {
 
     # Ask for verification
     if ! yesanswer "No" "Create new CA in ${ca_dir}" ; then
-        return 1
+        return ${ret}
     fi
 
     # Create directory layout and Initialize counters
@@ -352,7 +351,7 @@ function create_ca() {
     else
         echo "Error: Unable to create temporary config file." >&2
         rm -rf "${ca_dir}/private" "${ca_dir}/public" "${ca_dir}/csrs" "${ca_dir}/crts"
-        return 1
+        return ${ret}
     fi
 
     if [[ "${ca_rsa_ssa}" == "pss" ]] ; then
@@ -1138,6 +1137,15 @@ CERT_RSA_KEYSIZE="${CERT_RSA_KEYSIZE:-${CERT_RSA_KEYSIZE_DEFAULT}}"
 CERT_KEY_PW_PROTECTED="${CERT_KEY_PW_PROTECTED:-${CERT_KEY_PW_PROTECTED_DEFAULT}}"
 CSR_RSA_SSA="${CSR_RSA_SSA:-${CSR_RSA_SSA_DEFAULT}}"
 CA_CRL_DAYS="${CA_CRL_DAYS:-${CA_CRL_DAYS_DEFAULT}}"
+
+# Variables for CA subject
+CA_C="${CA_C:-}"
+CA_ST="${CA_ST:-}"
+CA_L="${CA_L:-}"
+CA_O="${CA_O:-}"
+CA_OU="${CA_OU:-}"
+CA_CN="${CA_CN:-}"
+
 all_yes=0
 
 # Read general options
