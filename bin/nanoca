@@ -73,10 +73,10 @@ declare -r CRL_DAYS_DEFAULT="30"
 
 
 # Global variable to hold "all yes" information
-all_yes=0
+declare -i all_yes
 
 # Global variable that hold the name of a temporary file
-openssl_cfg=""
+declare openssl_cfg=""
 
 
 # Exit hook to remove any created temporary file
@@ -1085,8 +1085,11 @@ function print_usage() {
 # Install exit handler (used to clean up any temporary file created)
 trap exit_cleanup EXIT
 
-# Initialize variables
+# Setup CA path
 ca_path="$(pwd)"
+
+# Initialize variables
+all_yes=0
 
 # Read general options
 while [[ "$1" != "" ]] ; do
