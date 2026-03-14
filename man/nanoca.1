@@ -24,10 +24,6 @@ in user specified directories, one per CA. Se available commands below.
 
 .SH OPTIONS
 .TP
-.BR \-d ", " \-\-dir =\fICADIR\fR
-Path to where the CA resides. Defaults to current working directory if not given.
-
-.TP
 .BR \-h ", " \-\-help
 Show help and then exit.
 
@@ -37,12 +33,16 @@ Show version and exit.
 
 .TP
 .BR \-y ", " \-\-yes
-Answer yes to all questions. Usefull in non-interactive cases. Only useful for the
-sign command for the time being.
+Answer yes to all questions and use defaults. Usefull in non-interactive cases. Only
+used for the create and sign commands for the time being.
+
+.TP
+.BR \-d ", " \-\-dir =\fICADIR\fR
+Path to where the CA resides. Defaults to current working directory if not given.
 
 
 .SH COMMANDS
-Below is the list of commands that \fBnanoca\fR accepts and their arguments. All
+Below is the list of commands that \fBnanoca\fR supports and their arguments. All
 commands, except \fBreq\fR, are required to be run while standing in the directory
 where the CA resides unless the CA direcotry is given with the \fB\-\-dir\fR
 option.
@@ -50,8 +50,33 @@ option.
 .TP
 .BR create
 Create a new CA in the current working directory (or in \fICADIR\fR if given by
-the \fB--dir\fR option). Configuration will be asked for interactively. The
-directory must be empty.
+the \fB\-\-dir\fR option). The directory must be empty. Configuration will be asked
+for interactively. Settings will be picked up by the following environment variables
+if they are set (the first six are the CA subject and if left blank the attribute in
+question will not be included in the subject):
+
+\fBCA_C\fR - ISO 3166-1 alpha-2 Country Code
+
+\fBCA_ST\fR - State or Province
+
+\fBCA_L\fR - Location or City
+
+\fBCA_O\fR - Organization
+
+\fBCA_OU\fR - Organizational Unit
+
+\fBCA_CN\fR - Common Name (mandatory if run with \fB\-\-yes\fR)
+
+\fBCA_YEARS\fR - CA lifespan in years (defaults to 20 if not given)
+
+\fBCA_RSA_KEYSIZE\fR - RSA keysize. 2048 or 4096 (defaults to 2048 if not given)
+
+\fBCA_SIGNED_CERT_DAYS\fR - Lifespan in days for signed certificates (defaults to 365 if not given)
+
+\fBCA_CRL_DAYS\fR - Lifespan in days for generated CRLs (defaults to 30 if not given)
+
+If the \fB\-\-yes\fR option is given, the creation is performed without interacation by
+using the above environment variables. All but \fBCA_CN\fR are optional.
 
 .TP
 .BR list
@@ -63,7 +88,9 @@ Create a new certificate by signing the signing request pointed to by \fICSR\fR.
 \fICSR\fR must be a path to a PEM encoded file containing the \fICSR\fR and must
 end with \'.csr\'. \fICRT\fR is the path to where the new certificate will be
 written. If left out, defaults to \fICSR\fR but with the \'.csr\' extension
-replaced with \'.crt\'.
+replaced with \'.crt\'. If the \fB\-\-yes\fR option is given, the signing is done
+without any questions and with the defaults. Useful for non-interacive use in
+scripts.
 
 .TP
 \fBre-sign\fR \fISERIAL\fR \fICRT\fR
@@ -105,7 +132,7 @@ need a properly setup smart card.
 
 
 .SH EXAMPLES
-Below are some examples of how to use \fBnanoca\fR.
+Below are some examples of how to use \fBnanoca\fR:
 
 Create a new CA:
     $ mkdir my_ca
