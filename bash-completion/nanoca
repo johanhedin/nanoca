@@ -22,6 +22,9 @@ function _nanoca_complete() {
             sign)
                 COMPREPLY=($(compgen -o filenames -G "${2}*.csr" "${2}"))
                 ;;
+            re-sign)
+                COMPREPLY=($(compgen -o filenames -P "" -W "$(ls -1 csrs/ 2>/dev/null | grep '\.csr$' | sed 's/\.csr//g')" "${2}"))
+                ;;
             *)
                 COMPREPLY=()
                 ;;
