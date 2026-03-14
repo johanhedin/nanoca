@@ -41,7 +41,6 @@
 
 # Basic constants
 VERSION="1.4.2"
-BASENAME="$(basename $0)"
 OPENSSL="/usr/bin/openssl"
 AWK="/usr/bin/awk"
 
@@ -995,9 +994,9 @@ function list_certs() {
 
 function print_usage() {
     cat <<- EOF
-	Usage: ${BASENAME} [OPTIONS ...] COMMAND ...
+	Usage: nanoca [OPTIONS ...] COMMAND ...
 	
-	${BASENAME} is a simple openssl based X.509 CA using files on disk. It can
+	nanoca is a simple openssl based X.509 CA using files on disk. It can
 	create and sign signing requests and create a CRL with revoked certificates.
 	Multiple CAs can easily be created and are completely represented by files
 	in user specified directories, one per CA. Se available commands below.
@@ -1059,23 +1058,23 @@ function print_usage() {
 	
 	Examples:
 	  Create a new key and CSR in /tmp/mycert.key and /tmp/mycert.csr:
-	      $ ${BASENAME} req /tmp/mycert.key /tmp/mycert.csr
+	      $ nanoca req /tmp/mycert.key /tmp/mycert.csr
 	
 	  Sign the CSR /tmp/mycert.csr and write the cert to /tmp/mycert.crt:
-	      $ ${BASENAME} --dir=my_ca sign /tmp/mycert.csr /tmp/mycert.crt
+	      $ nanoca --dir=my_ca sign /tmp/mycert.csr /tmp/mycert.crt
 	
 	  List certificates that the CA has signed:
 	      $ cd my_ca
-	      $ ${BASENAME} list
+	      $ nanoca list
 	
 	  Revoke certificate with serial number 05:
 	      $ cd my_ca
-	      $ ${BASENAME} revoke 05
+	      $ nanoca revoke 05
 	
 	  Create a new CA:
 	      $ mkdir my_ca
 	      $ cd my_ca
-	      $ ${BASENAME} create
+	      $ nanoca create
 	
 	EOF
 } # print_usage
