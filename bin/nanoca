@@ -46,10 +46,10 @@ declare -r OPENSSL="/usr/bin/openssl"
 declare -r AWK="/usr/bin/awk"
 
 # CA lifespan defaults (20 years)
-declare -r CA_DAYS_DEFAULT="7300"
+declare -ir CA_DAYS_DEFAULT=7300
 
 # CA RSA key size defaults (2048 bits)
-declare -r CA_RSA_KEYSIZE_DEFAULT="2048"
+declare -ir CA_RSA_KEYSIZE_DEFAULT=2048
 
 # CA RSA key protected by password defaults [Yes/No] (No)
 declare -r CA_KEY_PW_PROTECTED_DEFAULT="No"
@@ -58,7 +58,10 @@ declare -r CA_KEY_PW_PROTECTED_DEFAULT="No"
 declare -r CA_RSA_SSA_DEFAULT="PKCS1-V1.5"
 
 # CA Signed certificate lifespan defaults (1 year)
-declare -r CA_SIGNED_CERT_DAYS_DEFAULT="365"
+declare -ir CA_SIGNED_CERT_DAYS_DEFAULT=365
+
+# CA CRL lifespan (next update) defaults (one month)
+declare -ir CA_CRL_DAYS_DEFAULT=30
 
 # Certificate RSA key size defaults for a newly created key (2048 bits)
 declare -r CERT_RSA_KEYSIZE_DEFAULT="2048"
@@ -68,9 +71,6 @@ declare -r CERT_KEY_PW_PROTECTED_DEFAULT="No"
 
 # CSR RSA Signature Scheme defaults [PKCS1-V1.5/PSS] (PKCS1-V1.5)
 declare -r CSR_RSA_SSA_DEFAULT="PKCS1-V1.5"
-
-# CRL lifespan (next update) defaults (one month)
-declare -r CRL_DAYS_DEFAULT="30"
 
 
 # Global variable to hold "all yes" information
@@ -223,6 +223,8 @@ function create_ca() {
     local ca_key_pw_protected="${CA_KEY_PW_PROTECTED}"
     local ca_rsa_padding_mode=""
     local ca_rsa_pss_saltlen=""
+    local ca_signed_cert_days="${CA_SIGNED_CERT_DAYS}"
+    local crl_days="${CA_CRL_DAYS}"
     local ret=""
 
     # Verify that the directory for the new CA exists and is empty
@@ -273,6 +275,10 @@ function create_ca() {
         unset ca_key_pw_protected
     fi
 
+    echo "Enter CA lifespan settings:"
+    read -e -i "${ca_signed_cert_days}" -p "Signed certificate lifespan (days): " ca_signed_cert_days
+    read -e -i "${crl_days}" -p "CRL lifespan (days): " crl_days
+
     # Build CA subject string
     local ca_subject=""
     [[ -n "${ca_c}" ]]  && ca_subject="${ca_subject}/C=${ca_c}"
@@ -291,7 +297,7 @@ function create_ca() {
         return 1
     fi
 
-    # Create directory layout
+    # Create directory layout and Initialize counters
     mkdir "${ca_dir}/public"
     mkdir "${ca_dir}/crts"
     mkdir "${ca_dir}/csrs"
@@ -299,6 +305,13 @@ function create_ca() {
     touch "${ca_dir}/private/crtdb"
     echo "01" > "${ca_dir}/private/crtserial"
     echo "01" > "${ca_dir}/private/crlserial"
+
+    # Create settings file
+    cat <<- EOF > "${ca_dir}/private/settings.cfg"
+	# Settings for this CA
+	CA_SIGNED_CERT_DAYS=${ca_signed_cert_days}
+	CA_CRL_DAYS=${crl_days}
+	EOF
 
     # The database file (private/index) has a six field TAB separated layout
     # with the following fields:
@@ -336,6 +349,7 @@ function create_ca() {
 	EOF
     else
         echo "Error: Unable to create temporary config file." >&2
+        rm -rf "${ca_dir}/private" "${ca_dir}/public" "${ca_dir}/csrs" "${ca_dir}/crts"
         return 1
     fi
 
@@ -931,7 +945,7 @@ function recreate_crl() {
     local ca_key_file="${ca_dir}/private/${ca_name}.key"
     local ca_cert_file="${ca_dir}/public/${ca_name}.crt"
     local ca_crl_file="${ca_dir}/public/${ca_name}.crl"
-    local crl_days="${CRL_DAYS}"
+    local crl_days="${CA_CRL_DAYS}"
 
     # TODO: Add support for asking for crl_days
 
@@ -1103,7 +1117,7 @@ CA_SIGNED_CERT_DAYS="${CA_SIGNED_CERT_DAYS:-${CA_SIGNED_CERT_DAYS_DEFAULT}}"
 CERT_RSA_KEYSIZE="${CERT_RSA_KEYSIZE:-${CERT_RSA_KEYSIZE_DEFAULT}}"
 CERT_KEY_PW_PROTECTED="${CERT_KEY_PW_PROTECTED:-${CERT_KEY_PW_PROTECTED_DEFAULT}}"
 CSR_RSA_SSA="${CSR_RSA_SSA:-${CSR_RSA_SSA_DEFAULT}}"
-CRL_DAYS="${CRL_DAYS:-${CRL_DAYS_DEFAULT}}"
+CA_CRL_DAYS="${CA_CRL_DAYS:-${CA_CRL_DAYS_DEFAULT}}"
 all_yes=0
 
 # Read general options
