@@ -12,7 +12,7 @@ function _nanoca_complete() {
 
     if [[ ${COMP_CWORD} -eq 1 ]]; then
         # Complete command
-        COMPREPLY=($(compgen -W "req sign re-sign revoke recreate-crl list create" "${2}"))
+        COMPREPLY=($(compgen -W "req sign re-sign revoke recreate-crl list create debug" "${2}"))
     elif [[ ${COMP_CWORD} -eq 2 ]]; then
         # Complete firsta argument to commands that take arguments
         case "${cmd}" in
