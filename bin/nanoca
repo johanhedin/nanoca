@@ -1171,6 +1171,10 @@ while [[ "${1:-}" != "" ]] ; do
             ca_path="${1#*=}"
             ;;
 
+        -*|--*)
+            # Just ignore any unsupported options
+            ;;
+
         *)
             break
             ;;
