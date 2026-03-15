@@ -2,7 +2,7 @@
 
 # ###########################################################################
 # nanoca - A small file based X.509 Certificate Authority, CA
-# Copyright (C) 2020-2021, 2023-2025 Johan Hedin
+# Copyright (C) 2020-2021, 2023-2026 Johan Hedin
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 # Requires bash >= 4, openssl >= 1.0.1e, awk, ls, cat, sed and wc.
 #
 # Created: 2020-07-10
-# Updated: 2026-03-14
+# Updated: 2026-03-15
 #
 # TODO:
 #  - Take care of stderr from openssl and print that on error
@@ -33,7 +33,6 @@
 #  - Make CRT lifespan configurable when signing a CSR. Cap to CA lifespan
 #  - Make RSASSA-PSS signature for CSR work when using keys on PKCS11 tokens
 #  - Add printout of how the signed certificate is going to look like
-#  - Implement re-sign
 #  - Detect correct signature to use for re-sign
 #  - Add support for asking for salt len when using RSASSA-PSS
 #
