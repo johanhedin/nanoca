@@ -1149,7 +1149,7 @@ CA_CN="${CA_CN:-}"
 all_yes=0
 
 # Read general options
-while [[ "$1" != "" ]] ; do
+while [[ "${1:-}" != "" ]] ; do
     case "$1" in
         -h|--help)
             print_usage
@@ -1165,7 +1165,7 @@ while [[ "$1" != "" ]] ; do
             all_yes=1
             ;;
 
-        -d) shift
+        -d|--dir) shift
             ca_path="$1"
             ;;
         --dir=*)
