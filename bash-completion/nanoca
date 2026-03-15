@@ -1,42 +1,114 @@
 #!/bin/bash
 
 # bash completion for nanoca
+NANOCA_DEBUG_FILE="./debug"
+declare -i _nanoca_debug_row_cnt=0
+declare -i _nanoca_debug_row_current=0
+
+# Do debug printouts if a file named "debug" exists in the current working
+# directory. Calling with no argument just outputs a newline
+function _nanoca_debug() {
+    local msg="${1:-\n}"
+    if [[ -f ${NANOCA_DEBUG_FILE} ]]; then
+        if [[ ${_nanoca_debug_row_current} -ne ${_nanoca_debug_row_cnt} ]] ; then
+            printf '%02d: ' "${_nanoca_debug_row_cnt}" >> ${NANOCA_DEBUG_FILE}
+            let _nanoca_debug_row_current="_nanoca_debug_row_current + 1"
+        fi
+        echo -n -e "${msg}" >> ${NANOCA_DEBUG_FILE}
+        if [[ "${msg}" =~ \\n$ ]]; then
+            let _nanoca_debug_row_cnt="_nanoca_debug_row_cnt + 1"
+        fi
+    fi
+}
 
 function _nanoca_complete() {
+    # cmd is the nanoca command given
+    # arg_idx is the index position for the argument with any options ignored
+    local -i i=0
+    local comp_word=""
+    local prev_comp_word=""
     local cmd=""
-    if [[ ${COMP_CWORD} -gt 1 ]]; then
-        cmd="${COMP_WORDS[1]}"
-    fi
+    local -i arg_idx=0
 
-    local cur=${COMP_WORDS[COMP_CWORD]}
+    _nanoca_debug_row_current=0
+    _nanoca_debug_row_cnt=1
 
-    if [[ ${COMP_CWORD} -eq 1 ]]; then
-        # Complete command
-        COMPREPLY=($(compgen -W "req sign re-sign revoke recreate-crl list create debug" "${2}"))
-    elif [[ ${COMP_CWORD} -eq 2 ]]; then
-        # Complete firsta argument to commands that take arguments
+    _nanoca_debug "COMP_LINE=${COMP_LINE}\n"
+    _nanoca_debug "COMP_CWORD=${COMP_CWORD}\n"
+    _nanoca_debug "COMP_WORDS="
+    for ((i = 0; i <= ${COMP_CWORD}; i++)); do
+        _nanoca_debug "${COMP_WORDS[$i]} "
+    done
+    _nanoca_debug
+
+    # Find the actual command and count non-option arguments
+    for ((i = 1; i < ${COMP_CWORD}; i++)); do
+        prev_comp_word="${COMP_WORDS[$i - 1]}"
+        local comp_word="${COMP_WORDS[$i]}"
+        _nanoca_debug "    ${i} prev_comp_word=${prev_comp_word}\n"
+        _nanoca_debug "    ${i} comp_word=${comp_word}\n"
+
+        if [[ "${comp_word}" =~ ^- ]]; then
+            continue
+        fi
+
+        if [[ "${comp_word}" =~ ^=$ ]]; then
+            continue
+        fi
+
+        if [[ "${prev_comp_word}" =~ ^--dir$ || "${prev_comp_word}" =~ ^-d$ ]]; then
+            continue
+        fi
+
+        if [[ "${prev_comp_word}" =~ ^=$ ]]; then
+            continue
+        fi
+
+        if [[ ${arg_idx} -eq 0 ]]; then
+            # First non-option argument is the command
+            cmd="${comp_word}"
+        fi
+
+        ((arg_idx++))
+    done
+
+    local cur="${COMP_WORDS[COMP_CWORD]}"
+
+    _nanoca_debug "arg_idx=${arg_idx}\n"
+    _nanoca_debug "cmd=${cmd}\n"
+    _nanoca_debug "cur=${cur}\n"
+
+    # Determine what to complete based on argument position
+    if [[ $arg_idx -eq 0 ]]; then
+        # Complete command (we're still on the command position)
+        COMPREPLY=($(compgen -W "req sign re-sign revoke recreate-crl list create debug" -- "${cur}"))
+    elif [[ $arg_idx -eq 1 ]]; then
+        # Complete first argument to commands that take arguments
         case "${cmd}" in
             req)
-                COMPREPLY=($(compgen -o filenames -G "${2}*.key" "${2}"))
+                COMPREPLY=($(compgen -o filenames -G "${cur}*.key" -- "${cur}"))
                 ;;
             sign)
-                COMPREPLY=($(compgen -o filenames -G "${2}*.csr" "${2}"))
+                COMPREPLY=($(compgen -o filenames -G "${cur}*.csr" -- "${cur}"))
                 ;;
             re-sign)
-                COMPREPLY=($(compgen -o filenames -P "" -W "$(ls -1 csrs/ 2>/dev/null | grep '\.csr$' | sed 's/\.csr//g')" "${2}"))
+                COMPREPLY=($(compgen -o filenames -W "$(ls -1 csrs/ 2>/dev/null | grep '\.csr$' | sed 's/\.csr//g')" -- "${cur}"))
+                ;;
+            revoke)
+                COMPREPLY=($(compgen -o filenames -W "$(ls -1 crts/ 2>/dev/null | grep '\.pem$' | sed 's/\.pem//g')" -- "${cur}"))
                 ;;
             *)
                 COMPREPLY=()
                 ;;
         esac
-    elif [[ ${COMP_CWORD} -eq 3 ]]; then
+    elif [[ $arg_idx -eq 2 ]]; then
         # Complete second argument to commands that take arguments
         case "${cmd}" in
             req)
-                COMPREPLY=($(compgen -o filenames -G "${2}*.csr" "${2}"))
+                COMPREPLY=($(compgen -o filenames -G "${cur}*.csr" -- "${cur}"))
                 ;;
             sign)
-                COMPREPLY=($(compgen -o filenames -G "${2}*.crt" "${2}"))
+                COMPREPLY=($(compgen -o filenames -G "${cur}*.crt" -- "${cur}"))
                 ;;
             *)
                 COMPREPLY=()
@@ -45,8 +117,11 @@ function _nanoca_complete() {
     else
         COMPREPLY=()
     fi
+
+    _nanoca_debug
 }
 
+# Register our function with the complete subsystem
 complete -F _nanoca_complete nanoca
 
 # vim: ft=sh
