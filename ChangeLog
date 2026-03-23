@@ -1,3 +1,8 @@
+* Mon Mar 23 2026 Johan Hedin - 1.5.2
+- Fix bug in the name print command
+- Fix misspelled variable name
+- Fix bad return value in internal exit trap
+
 * Mon Mar 23 2026 Johan Hedin - 1.5.1
 - Add name command that prints the Common Name of the CA
 
