@@ -1,3 +1,6 @@
+* Mon Mar 23 2026 Johan Hedin - 1.5.1
+- Add name command that prints the Common Name of the CA
+
 * Sun Mar 15 2026 Johan Hedin - 1.5.0
 - Add support for non-interactive signing (--yes)
 - Allow creating CSR with empty subject as long as SAN exist
