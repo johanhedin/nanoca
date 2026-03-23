@@ -22,7 +22,7 @@
 # Requires bash >= 4, openssl >= 1.0.1e, awk, ls, cat, sed and wc.
 #
 # Created: 2020-07-10
-# Updated: 2026-03-15
+# Updated: 2026-03-23
 #
 # TODO:
 #  - Take care of stderr from openssl and print that on error
@@ -39,7 +39,7 @@
 set -euo pipefail
 
 # Basic constants
-declare -r VERSION="1.5.0"
+declare -r VERSION="1.5.1"
 declare -r OPENSSL="/usr/bin/openssl"
 declare -r AWK="/usr/bin/awk"
 
@@ -176,8 +176,8 @@ function prefix_san() {
 } # prefix_san
 
 
-# Echo the name of the CA given the directory in $1. Echos the empty string
-# if $1 does not point to a valid nanoca directory
+# Echo the name of the CA (i.e. Common Name, CN) given the directory in $1.
+# Echos the empty string if $1 does not point to a valid nanoca directory
 function get_ca_name() {
     local ca_dir="$1"
     local num_key_files=""
@@ -197,7 +197,7 @@ function get_ca_name() {
               -f "${ca_dir}/private/crtserial" && \
               -f "${ca_dir}/private/crlserial" && \
               -f "${ca_dir}/private/crtdb" ]] ; then
-            ca_name="${ca_name_tmp}"
+            ca_name=$(${OPENSSL} x509 -noout -subject -in "${ca_dir}/public/${ca_name_tmp}.crt" | sed 's/.*CN=\([^,]*\).*/\1/')
         fi
     fi
 
@@ -1233,6 +1233,10 @@ case "${command}" in
     recreate-crl)
         recreate_crl "${ca_path}" "${ca_name}" $@
         ret=$?
+        ;;
+    name)
+        echo "${ca_name}"
+        ret=0
         ;;
     debug)
         print_settings

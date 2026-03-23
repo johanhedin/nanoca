@@ -81,7 +81,7 @@ function _nanoca_complete() {
     # Determine what to complete based on argument position
     if [[ $arg_idx -eq 0 ]]; then
         # Complete command (we're still on the command position)
-        COMPREPLY=($(compgen -W "req sign re-sign revoke recreate-crl list create debug" -- "${cur}"))
+        COMPREPLY=($(compgen -W "req sign re-sign revoke recreate-crl list create name debug" -- "${cur}"))
     elif [[ $arg_idx -eq 1 ]]; then
         # Complete first argument to commands that take arguments
         case "${cmd}" in
