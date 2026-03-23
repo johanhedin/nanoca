@@ -39,7 +39,7 @@
 set -euo pipefail
 
 # Basic constants
-declare -r VERSION="1.5.1"
+declare -r VERSION="1.5.2"
 declare -r OPENSSL="/usr/bin/openssl"
 declare -r AWK="/usr/bin/awk"
 
@@ -197,7 +197,7 @@ function get_ca_name() {
               -f "${ca_dir}/private/crtserial" && \
               -f "${ca_dir}/private/crlserial" && \
               -f "${ca_dir}/private/crtdb" ]] ; then
-            ca_name=$(${OPENSSL} x509 -noout -subject -in "${ca_dir}/public/${ca_name_tmp}.crt" | sed 's/.*CN=\([^,]*\).*/\1/')
+            ca_name="${ca_name_tmp}"
         fi
     fi
 
@@ -1235,7 +1235,8 @@ case "${command}" in
         ret=$?
         ;;
     name)
-        echo "${ca_name}"
+        tmp_name=$(${OPENSSL} x509 -noout -subject -in "${ca_path}/public/${ca_name}.crt" | sed 's/.*CN=\([^,]*\).*/\1/')
+        echo "${tmp_name}"
         ret=0
         ;;
     debug)
