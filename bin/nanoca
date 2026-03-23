@@ -80,7 +80,7 @@ declare openssl_cfg=""
 
 # Exit hook to remove any created temporary file
 function exit_cleanup() {
-    [[ -f "${openssl_cfg}" ]] && rm -f "${openssl_cfg}"
+    [[ -f "${openssl_cfg}" ]] && rm -f "${openssl_cfg}" || true
 }
 
 
