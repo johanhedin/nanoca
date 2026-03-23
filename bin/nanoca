@@ -560,7 +560,7 @@ function create_request() {
     echo "Enter cryptographic settings:"
     if [[ ${create_keyfile} -eq 1 ]] ; then
         read -e -i "${crt_rsa_keysize}" -p "RSA keysize in bits [2048/4096]: " crt_rsa_keysize
-        if [[ "${crt_rsa_keysize}" != "2048" && "${ccrt_rsa_keysize}" != "4096" ]] ; then
+        if [[ "${crt_rsa_keysize}" != "2048" && "${crt_rsa_keysize}" != "4096" ]] ; then
             echo "Error: RSA keysize must be 2048 or 4096." >&2
             return 1
         fi
