@@ -22,13 +22,12 @@
 # Requires bash >= 4, openssl >= 1.0.1e, awk, ls, cat, sed and wc.
 #
 # Created: 2020-07-10
-# Updated: 2026-03-23
+# Updated: 2026-03-24
 #
 # TODO:
 #  - Take care of stderr from openssl and print that on error
 #  - Make it possible to give CRL lifespan as input when creating new CRLs
 #  - Add support for creating intermediate CAs and for signing CA certs
-#  - Make sure that spaces in file names are properly handled
 #  - Make criticality of "CA:true" configurable for the CA
 #  - Make CRT lifespan configurable when signing a CSR. Cap to CA lifespan
 #  - Make RSASSA-PSS signature for CSR work when using keys on PKCS11 tokens
@@ -803,9 +802,9 @@ function sign_request() {
 	# Temporary file that should not be lying around.
 	# Can be safely removed if found.
 	[nanoca]
-	database        = ${ca_dir}/private/crtdb
-	serial          = ${ca_dir}/private/crtserial
-	new_certs_dir   = ${ca_dir}/crts
+	database        = "${ca_dir}/private/crtdb"
+	serial          = "${ca_dir}/private/crtserial"
+	new_certs_dir   = "${ca_dir}/crts"
 	unique_subject  = no
 	copy_extensions = copy
 	#email_in_dn     = no
@@ -914,7 +913,7 @@ function revoke_cert() {
 	# Temporary file that should not be lying around.
 	# Can be safely removed if found.
 	[nanoca]
-	database  = ${ca_dir}/private/crtdb
+	database  = "${ca_dir}/private/crtdb"
 	EOF
     else
         echo "Error: Unable to create temporary config file." >&2
@@ -961,8 +960,8 @@ function recreate_crl() {
 	# Temporary file that should not be lying around.
 	# Can be safely removed if found.
 	[nanoca]
-	database  = ${ca_dir}/private/crtdb
-	crlnumber = ${ca_dir}/private/crlserial
+	database  = "${ca_dir}/private/crtdb"
+	crlnumber = "${ca_dir}/private/crlserial"
 	crl_extensions = nanoca_crl_extensions
 	
 	[nanoca_crl_extensions]
