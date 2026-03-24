@@ -185,10 +185,10 @@ function get_ca_name() {
     local ca_name_tmp=""
     local ca_name=""
 
-    num_key_files=$(ls ${ca_dir}/private/*.key 2>/dev/null | wc -l)
+    num_key_files=$(ls "${ca_dir}"/private/*.key 2>/dev/null | wc -l)
     if [[ "${num_key_files}" == "1" ]] ; then
-        key_file="$(ls ${ca_dir}/private/*.key)"
-        ca_name_tmp="$(basename ${key_file})"
+        key_file=$(ls "${ca_dir}"/private/*.key)
+        ca_name_tmp=$(basename "${key_file}")
         ca_name_tmp="${ca_name_tmp%.*}"
 
         if [[ -f "${ca_dir}/public/${ca_name_tmp}.crt" && \
@@ -851,14 +851,14 @@ function sign_request() {
     fi
 
     # Check the CSR and if empty subject, synthesize a subject from SAN
-    if [[ -z "$(${OPENSSL} req -noout -subject -in ${in_csr} | sed 's/subject=//g')" ]] ; then
+    if [[ -z "$(${OPENSSL} req -noout -subject -in "${in_csr}" | sed 's/subject=//g')" ]] ; then
         # Extract CN from first SAN in csr
-        local first_san="$(${OPENSSL} req -noout -text -in ${in_csr} | ${AWK} -F'DNS:' '/DNS:/ { sub(",", ""); print $2 }')"
+        local first_san=$(${OPENSSL} req -noout -text -in "${in_csr}" | ${AWK} -F'DNS:' '/DNS:/ { sub(",", ""); print $2 }')
         synthesized_subj="/CN=${first_san}"
     fi
 
     # Save the CSR
-    serial=$(cat ${ca_dir}/private/crtserial)
+    serial=$(cat "${ca_dir}"/private/crtserial)
     private_csr="${ca_dir}/csrs/${serial}.csr"
     cp "${in_csr}" "${private_csr}"
 
