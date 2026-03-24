@@ -228,7 +228,7 @@ function create_ca() {
 
     # Verify that the directory for the new CA exists and is empty
     if [[ -d "${ca_dir}" ]] ; then
-        # Requested CA directory exist. Verify that it is empty
+        # Requested CA directory exists. Verify that it is empty
         if [[ -n "$(ls -A "${ca_dir}")" ]] ; then
             echo "Error: Directory '${ca_dir}' is not empty." >&2
             return ${ret}
@@ -446,7 +446,7 @@ function create_request() {
         return 1
     fi
 
-    # If the requested key file already exist, use it instead of creating
+    # If the requested key file already exists, use it instead of creating
     # a new one
     if [[ -f "${crt_keyfile}" ]] ; then
         create_keyfile=0
@@ -787,9 +787,9 @@ function sign_request() {
             return 1
         fi
 
-        # Check if out file exist and if it does, ask for confirmation to overwrite
+        # Check if out file exists and if it does, ask for confirmation to overwrite
         if [[ -f "${out_crt}" ]] ; then
-            if ! yesanswer "No" "Warning: '${out_crt}' already exist. Overwrite" ; then
+            if ! yesanswer "No" "Warning: '${out_crt}' already exists. Overwrite" ; then
                 return 1
             fi
         fi
