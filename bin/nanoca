@@ -365,7 +365,7 @@ function create_ca() {
         ca_rsa_pss_saltlen=""
     fi
 
-    let ca_days="ca_years*365"
+    (( ca_days = ca_years * 365 ))
 
     ${OPENSSL} req \
         -config "${openssl_cfg}" \
