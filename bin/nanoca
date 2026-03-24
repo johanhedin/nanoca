@@ -1220,7 +1220,7 @@ case "${command}" in
             echo "Error: No output filename given." >&2
             ret=1
         else
-            sign_request "${ca_path}" "${ca_name}" "${ca_path}/csrs/$1.csr" $2
+            sign_request "${ca_path}" "${ca_name}" "${ca_path}/csrs/$1.csr" "$2"
             ret=$?
         fi
         ;;
