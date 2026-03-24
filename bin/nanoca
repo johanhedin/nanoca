@@ -1193,12 +1193,12 @@ command="$1"
 shift
 
 if [[ "${command}" == "create" ]] ; then
-    create_ca "${ca_path}" $@
+    create_ca "${ca_path}" "$@"
     exit $?
 fi
 
 if [[ "${command}" == "req" ]] ; then
-    create_request $@
+    create_request "$@"
     exit $?
 fi
 
@@ -1212,7 +1212,7 @@ fi
 declare -i ret=0
 case "${command}" in
     sign)
-        sign_request "${ca_path}" "${ca_name}" $@
+        sign_request "${ca_path}" "${ca_name}" "$@"
         ret=$?
         ;;
     re-sign)
@@ -1225,15 +1225,15 @@ case "${command}" in
         fi
         ;;
     list)
-        list_certs "${ca_path}" "${ca_name}" $@
+        list_certs "${ca_path}" "${ca_name}" "$@"
         ret=$?
         ;;
     revoke)
-        revoke_cert "${ca_path}" "${ca_name}" $@
+        revoke_cert "${ca_path}" "${ca_name}" "$@"
         ret=$?
         ;;
     recreate-crl)
-        recreate_crl "${ca_path}" "${ca_name}" $@
+        recreate_crl "${ca_path}" "${ca_name}" "$@"
         ret=$?
         ;;
     name)
