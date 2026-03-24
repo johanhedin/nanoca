@@ -290,7 +290,7 @@ function create_ca() {
 
     # Create basename for key, crt and crl files for this CA based on the CN
     local ca_basename="${ca_cn,,}"
-    local ca_basename="${ca_basename// /-}"
+    ca_basename="${ca_basename// /-}"
 
     # Ask for verification
     if [[ ${all_yes} -eq 0 ]] && ! yesanswer "No" "Create new CA in ${ca_dir}" ; then
