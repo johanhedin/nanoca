@@ -613,9 +613,9 @@ function create_request() {
     fi
     echo "    RSA signature scheme: ${csr_rsa_ssa}"
     echo "    Subject: ${csr_subject}"
-    [[ -n "${csr_ku}" ]]  &&  echo "    Key Usage: ${csr_ku}"
-    [[ -n "${csr_ku}" ]]  &&  echo "    Extended Key Usage: ${csr_eku}"
-    [[ -n "${csr_san}" ]]  && echo "    Subject Alternative Name: ${csr_san}"
+    [[ -n "${csr_ku}" ]]  && echo "    Key Usage: ${csr_ku}"
+    [[ -n "${csr_eku}" ]] && echo "    Extended Key Usage: ${csr_eku}"
+    [[ -n "${csr_san}" ]] && echo "    Subject Alternative Name: ${csr_san}"
 
     if ! yesanswer "No" "Continue" ; then
         return 1
@@ -754,6 +754,7 @@ function sign_request() {
     local crt_rsa_padding_mode=""
     local crt_rsa_pss_saltlen=""
     local synthesized_subj=""
+    local -i ret=1
 
     local ca_key_file="${ca_dir}/private/${ca_name}.key"
     local ca_cert_file="${ca_dir}/public/${ca_name}.crt"
@@ -761,12 +762,12 @@ function sign_request() {
     # Verify input file
     if [[ ! -f "${in_csr}" || "${in_csr##*.}" != "csr" ]] ; then
         echo "Error: CSR '${in_csr}' does not exist or has wrong file ending." >&2
-        return 1
+        return ${ret}
     fi
 
     if ! ${OPENSSL} req -verify -noout -in "${in_csr}" 2>/dev/null ; then
         echo "Error: File '${in_csr}' is not a valid CSR. " >&2
-        return 1
+        return ${ret}
     fi
 
     # Create default out file name if not given
@@ -779,18 +780,18 @@ function sign_request() {
         crt_rsa_ssa="${crt_rsa_ssa^^}"
         if [[ "${crt_rsa_ssa}" != "PKCS1-V1.5" && "${crt_rsa_ssa}" != "PSS" ]] ; then
             echo "Error: RSA signature scheme must be PKCS1-V1.5 or PSS." >&2
-            return 1
+            return ${ret}
         fi
 
         # Ask for confirmation for the signing
         if ! yesanswer "No" "Create signed certificate '${out_crt}' from request '${in_csr}'" ; then
-            return 1
+            return ${ret}
         fi
 
         # Check if out file exists and if it does, ask for confirmation to overwrite
         if [[ -f "${out_crt}" ]] ; then
             if ! yesanswer "No" "Warning: '${out_crt}' already exists. Overwrite" ; then
-                return 1
+                return ${ret}
             fi
         fi
     fi
@@ -834,7 +835,7 @@ function sign_request() {
 	EOF
     else
         echo "Error: Unable to create temporary config file." >&2
-        return 1
+        return ${ret}
     fi
 
     if [[ "${crt_rsa_ssa}" == "PSS" ]] ; then
@@ -899,10 +900,11 @@ function revoke_cert() {
     local ca_key_file="${ca_dir}/private/${ca_name}.key"
     local ca_cert_file="${ca_dir}/public/${ca_name}.crt"
     local cert_file="${ca_dir}/crts/${serial}.pem"
+    local -i ret=1
 
     if [[ ! -f "${cert_file}" ]] ; then
         echo "Error: Certificate with serial ${serial} does not exist." >&2
-        return 1
+        return ${ret}
     fi
 
     # Some config to openssl must be given in the config file
@@ -916,7 +918,7 @@ function revoke_cert() {
 	EOF
     else
         echo "Error: Unable to create temporary config file." >&2
-        return 1
+        return ${ret}
     fi
 
     ${OPENSSL} ca \
@@ -948,6 +950,7 @@ function recreate_crl() {
     local ca_cert_file="${ca_dir}/public/${ca_name}.crt"
     local ca_crl_file="${ca_dir}/public/${ca_name}.crl"
     local crl_days="${CA_CRL_DAYS}"
+    local -i ret=1
 
     # TODO: Add support for asking for crl_days
 
@@ -971,7 +974,7 @@ function recreate_crl() {
 	EOF
     else
         echo "Error: Unable to create temporary config file." >&2
-        return 1
+        return ${ret}
     fi
 
     ${OPENSSL} ca \
@@ -1181,7 +1184,7 @@ while [[ "${1:-}" != "" ]] ; do
     shift
 done
 
-if [[ -z "$@" ]] ; then
+if [[ $# -eq 0 ]] ; then
     echo "Error: No command given." >&2
     exit 1
 fi
