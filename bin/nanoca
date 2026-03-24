@@ -357,7 +357,7 @@ function create_ca() {
         ca_rsa_padding_mode="rsa_padding_mode:pss"
 
         # Prepare sigopt if custom salt len is given
-        if [[ ! -z "${ca_rsa_pss_saltlen}" ]] ; then
+        if [[ -n "${ca_rsa_pss_saltlen}" ]] ; then
             ca_rsa_pss_saltlen="rsa_pss_saltlen:${ca_rsa_pss_saltlen}"
         fi
     else
@@ -664,7 +664,7 @@ function create_request() {
         csr_rsa_padding_mode="rsa_padding_mode:pss"
 
         # Prepare sigopt if custom salt len is given
-        if [[ ! -z "${csr_rsa_pss_saltlen}" ]] ; then
+        if [[ -n "${csr_rsa_pss_saltlen}" ]] ; then
             csr_rsa_pss_saltlen="rsa_pss_saltlen:${csr_rsa_pss_saltlen}"
         fi
     else
@@ -842,7 +842,7 @@ function sign_request() {
         crt_rsa_padding_mode="rsa_padding_mode:pss"
 
         # Prepare sigopt if custom salt len is given
-        if [[ ! -z "${crt_rsa_pss_saltlen}" ]] ; then
+        if [[ -n "${crt_rsa_pss_saltlen}" ]] ; then
             crt_rsa_pss_saltlen="rsa_pss_saltlen:${crt_rsa_pss_saltlen}"
         fi
     else
