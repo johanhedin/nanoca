@@ -1,3 +1,7 @@
+* Tue Mar 24 2026 Johan Hedin - 1.5.3 (not yet released)
+- Support spaces in directory paths and filenames
+- Code style cleanups
+
 * Mon Mar 23 2026 Johan Hedin - 1.5.2
 - Fix bug in the name print command
 - Fix misspelled variable name
