@@ -1138,31 +1138,6 @@ trap exit_cleanup EXIT
 # Setup CA path
 ca_path="$(pwd)"
 
-# Read settings if available
-if [[ -f "${ca_path}/private/settings.cfg" ]] ; then
-    source "${ca_path}/private/settings.cfg"
-fi
-
-# Initialize variables from defaults if not set from settings.cfg or environment
-CA_YEARS="${CA_YEARS:-${CA_YEARS_DEFAULT}}"
-CA_RSA_KEYSIZE="${CA_RSA_KEYSIZE:-${CA_RSA_KEYSIZE_DEFAULT}}"
-CA_KEY_PW_PROTECTED="${CA_KEY_PW_PROTECTED:-${CA_KEY_PW_PROTECTED_DEFAULT}}"
-CA_RSA_SSA="${CA_RSA_SSA:-${CA_RSA_SSA_DEFAULT}}"
-CA_SIGNED_CERT_DAYS="${CA_SIGNED_CERT_DAYS:-${CA_SIGNED_CERT_DAYS_DEFAULT}}"
-CERT_RSA_KEYSIZE="${CERT_RSA_KEYSIZE:-${CERT_RSA_KEYSIZE_DEFAULT}}"
-CERT_KEY_PW_PROTECTED="${CERT_KEY_PW_PROTECTED:-${CERT_KEY_PW_PROTECTED_DEFAULT}}"
-CSR_RSA_SSA="${CSR_RSA_SSA:-${CSR_RSA_SSA_DEFAULT}}"
-CA_CRL_DAYS="${CA_CRL_DAYS:-${CA_CRL_DAYS_DEFAULT}}"
-CA_CRL_URL="${CA_CRL_URL:-${CA_CRL_URL_DEFAULT}}"
-
-# Variables for CA subject
-CA_C="${CA_C:-}"
-CA_ST="${CA_ST:-}"
-CA_L="${CA_L:-}"
-CA_O="${CA_O:-}"
-CA_OU="${CA_OU:-}"
-CA_CN="${CA_CN:-}"
-
 all_yes=0
 
 # Read general options
@@ -1207,6 +1182,31 @@ fi
 
 command="$1"
 shift
+
+# Read settings if available
+if [[ -f "${ca_path}/private/settings.cfg" ]] ; then
+    source "${ca_path}/private/settings.cfg"
+fi
+
+# Initialize variables from defaults if not set from settings.cfg or environment
+CA_YEARS="${CA_YEARS:-${CA_YEARS_DEFAULT}}"
+CA_RSA_KEYSIZE="${CA_RSA_KEYSIZE:-${CA_RSA_KEYSIZE_DEFAULT}}"
+CA_KEY_PW_PROTECTED="${CA_KEY_PW_PROTECTED:-${CA_KEY_PW_PROTECTED_DEFAULT}}"
+CA_RSA_SSA="${CA_RSA_SSA:-${CA_RSA_SSA_DEFAULT}}"
+CA_SIGNED_CERT_DAYS="${CA_SIGNED_CERT_DAYS:-${CA_SIGNED_CERT_DAYS_DEFAULT}}"
+CERT_RSA_KEYSIZE="${CERT_RSA_KEYSIZE:-${CERT_RSA_KEYSIZE_DEFAULT}}"
+CERT_KEY_PW_PROTECTED="${CERT_KEY_PW_PROTECTED:-${CERT_KEY_PW_PROTECTED_DEFAULT}}"
+CSR_RSA_SSA="${CSR_RSA_SSA:-${CSR_RSA_SSA_DEFAULT}}"
+CA_CRL_DAYS="${CA_CRL_DAYS:-${CA_CRL_DAYS_DEFAULT}}"
+CA_CRL_URL="${CA_CRL_URL:-${CA_CRL_URL_DEFAULT}}"
+
+# Variables for CA subject
+CA_C="${CA_C:-}"
+CA_ST="${CA_ST:-}"
+CA_L="${CA_L:-}"
+CA_O="${CA_O:-}"
+CA_OU="${CA_OU:-}"
+CA_CN="${CA_CN:-}"
 
 if [[ "${command}" == "create" ]] ; then
     create_ca "${ca_path}" "$@"
