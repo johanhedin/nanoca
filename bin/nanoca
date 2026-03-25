@@ -60,6 +60,9 @@ declare -ir CA_SIGNED_CERT_DAYS_DEFAULT=365
 # CA CRL lifespan (next update) defaults (one month)
 declare -ir CA_CRL_DAYS_DEFAULT=30
 
+# CA CRL Distribution Point URL default (empty = omit extension)
+declare -r CA_CRL_URL_DEFAULT=""
+
 # Certificate RSA key size defaults for a newly created key (2048 bits)
 declare -r CERT_RSA_KEYSIZE_DEFAULT="2048"
 
@@ -225,6 +228,7 @@ function create_ca() {
     local ca_rsa_pss_saltlen=""
     local -i ca_signed_cert_days=${CA_SIGNED_CERT_DAYS}
     local -i crl_days=${CA_CRL_DAYS}
+    local ca_crl_url="${CA_CRL_URL}"
     local -i ret=1
 
     # Verify that the directory for the new CA exists and is empty
@@ -279,6 +283,7 @@ function create_ca() {
     [[ ${all_yes} -eq 0 ]] && read -e -i "${ca_years}"            -p "CA lifespan (years): " ca_years
     [[ ${all_yes} -eq 0 ]] && read -e -i "${ca_signed_cert_days}" -p "Signed certificate lifespan (days): " ca_signed_cert_days
     [[ ${all_yes} -eq 0 ]] && read -e -i "${crl_days}"            -p "CRL lifespan (days): " crl_days
+    [[ ${all_yes} -eq 0 ]] && read -e -i "${ca_crl_url}"          -p "CRL Distribution Point URL (empty to omit): " ca_crl_url
 
     # Build CA subject string
     local ca_subject=""
@@ -312,6 +317,7 @@ function create_ca() {
 	# Settings for this CA
 	CA_SIGNED_CERT_DAYS=${ca_signed_cert_days}
 	CA_CRL_DAYS=${crl_days}
+	CA_CRL_URL=${ca_crl_url}
 	EOF
 
     # The database file (private/index) has a six field TAB separated layout
@@ -834,6 +840,12 @@ function sign_request() {
 	#authorityKeyIdentifier = keyid,issuer:always
 	authorityKeyIdentifier = keyid:always
 	EOF
+
+        if [[ -n "${CA_CRL_URL}" ]] ; then
+            cat <<- EOF >> "${openssl_cfg}"
+	crlDistributionPoints = URI:${CA_CRL_URL}
+	EOF
+        fi
     else
         echo "Error: Unable to create temporary config file." >&2
         return ${ret}
@@ -1113,6 +1125,7 @@ function print_settings() {
 	CSR_RSA_SSA=${CSR_RSA_SSA}
 	CA_SIGNED_CERT_DAYS=${CA_SIGNED_CERT_DAYS}
 	CA_CRL_DAYS=${CA_CRL_DAYS}
+	CA_CRL_URL=${CA_CRL_URL}
 	EOF
 } # print_settings
 
@@ -1140,6 +1153,7 @@ CERT_RSA_KEYSIZE="${CERT_RSA_KEYSIZE:-${CERT_RSA_KEYSIZE_DEFAULT}}"
 CERT_KEY_PW_PROTECTED="${CERT_KEY_PW_PROTECTED:-${CERT_KEY_PW_PROTECTED_DEFAULT}}"
 CSR_RSA_SSA="${CSR_RSA_SSA:-${CSR_RSA_SSA_DEFAULT}}"
 CA_CRL_DAYS="${CA_CRL_DAYS:-${CA_CRL_DAYS_DEFAULT}}"
+CA_CRL_URL="${CA_CRL_URL:-${CA_CRL_URL_DEFAULT}}"
 
 # Variables for CA subject
 CA_C="${CA_C:-}"
