@@ -31,7 +31,7 @@
 #  - Make criticality of "CA:true" configurable for the CA
 #  - Make CRT lifespan configurable when signing a CSR. Cap to CA lifespan
 #  - Make RSASSA-PSS signature for CSR work when using keys on PKCS11 tokens
-#  - Add printout of how the signed certificate is going to look like
+#  - Add printout of what the signed certificate will look like
 #  - Detect correct signature to use for re-sign
 #  - Add support for asking for salt len when using RSASSA-PSS
 #
@@ -156,7 +156,7 @@ function choose_value() {
 
 
 # Function to build a prefixed SAN string. Example:
-#   prefix_san www.example.com,10.0.0.1 -> "DNS:www.example.com,IP:10.0.0.1"
+#   prefix_san www.example.com 10.0.0.1 -> "DNS:www.example.com,IP:10.0.0.1"
 #
 function prefix_san() {
     local csr_san=""
@@ -273,6 +273,8 @@ function create_ca() {
         return ${ret}
     fi
 
+    # Password protection of the private key is only supported in interactive
+    # mode. When --yes is used we just skip this
     if [[ ${all_yes} -eq 0 ]] && yesanswer "${ca_key_pw_protected}" "Should the CA private key be pass phrase protected" ; then
         ca_key_pw_protected=""
     else
@@ -303,7 +305,7 @@ function create_ca() {
         return ${ret}
     fi
 
-    # Create directory layout and Initialize counters
+    # Create directory layout and initialize counters
     mkdir "${ca_dir}/public"
     mkdir "${ca_dir}/crts"
     mkdir "${ca_dir}/csrs"
@@ -329,11 +331,11 @@ function create_ca() {
     #   File name of certificate. Always "unknown"
     #   Certificate subject name
     #
-    # For a V entry to change to a E entry, openssl ca updatedb
+    # For a V entry to change to an E entry, openssl ca updatedb
 
     # We use command line arguments to openssl for most of the settings for the
     # CA but we still need a config file for settings that are not yet available
-    # on the command line. A config file need to be used anyway to prevent
+    # on the command line. A config file needs to be used anyway to prevent
     # openssl to use the default config file in /etc
     openssl_cfg="$(mktemp -q "${ca_dir}/nanoca-tmp-XXXXXX.cfg")"
     if [[ -f "${openssl_cfg}" ]] ; then
@@ -379,7 +381,7 @@ function create_ca() {
         -x509 \
         -utf8 \
         -sha256 \
-        -days ${ca_days}  \
+        -days ${ca_days} \
         -newkey rsa:${ca_rsa_keysize} \
         -keyout "${ca_dir}/private/${ca_basename}.key" \
         ${ca_key_pw_protected--nodes} \
@@ -469,7 +471,7 @@ function create_request() {
     echo "  1 - Request for machine certificate (server and/or client)"
     echo "  2 - Request for personal client certificate"
     local req_type
-    req_type=$(choose_value 'Enter request type' '1' '1 2')
+    req_type=$(choose_value 'Enter request type' '1' '1' '2')
 
     if [[ "${req_type}" == "1" ]] ; then
         req_type="machine"
@@ -518,7 +520,9 @@ function create_request() {
             fi
         done
 
-        # Build correct SAN by prefixing the entries accordingly
+        # Build correct SAN by prefixing the entries accordingly. We call prefix_san
+        # with an unquoted variable to get every part of the string as it's own argument
+        # to the function
         csr_san=$(prefix_san ${san_str})
     else
         # Request for personal certificate
@@ -747,7 +751,7 @@ function create_request() {
 } # create_request
 
 
-# Sign a request with the nano CA pointed to by $1. $2 is the name of the CA,
+# Sign a request with the CA pointed to by $1. $2 is the name of the CA,
 # $3 is the CSR and $4 the path to the resulting certificate file
 function sign_request() {
     local ca_dir="$1"
@@ -1019,7 +1023,7 @@ function list_certs() {
     local ca_dir="$1"
     local ca_name="$2"
 
-    echo -e "State  Expiry Date    Revocation Date,Reason    Serial  Subject"
+    echo "State  Expiry Date    Revocation Date,Reason    Serial  Subject"
     ${AWK} -F"\t" '{ printf "%-6s %-14s %-25s %-7s %s\n", $1, $2, $3, $4, $6 }' "${ca_dir}/private/crtdb"
 
     return 0
@@ -1069,7 +1073,7 @@ function print_usage() {
 	                       Use the list command to see available certificates and
 	                       their serial numbers.
 	                       Note: The CRL will not be updated. The recreate-crl
-	                       command need to be run to generate a new CRL.
+	                       command needs to be run to generate a new CRL.
 	  recreate-crl       - Recreate the CRL. Must be used regularly since a CRL
 	                       has a limited lifespan. If CRLs for the CA is to be
 	                       used, this command must be run at even intervals and
@@ -1085,7 +1089,9 @@ function print_usage() {
 	  -h, --help         Show this help and then exit
 	  -v, --version      Print version and then exit
 	  -y, --yes          Answer yes to all questions. Useful for non-interactive use.
-	                     Only supported for the sign command at the moment
+	                     Only used for the create and sign commands at the moment. If
+	                     used for the create command, it is not possible to set a
+	                     password on the private key
 	  -d, --dir=CADIR    Path to where the CA resides. Defaults to current
 	                     working directory if not given
 	
