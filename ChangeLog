@@ -1,4 +1,4 @@
-* Mon Mar 30 2026 Johan Hedin - 1.5.3 (not yet released)
+* Mon Mar 30 2026 Johan Hedin - 1.5.3
 - Support spaces in directory paths and filenames
 - Code style cleanups
 - Fix broken environment variable override for variables in settings.cfg
