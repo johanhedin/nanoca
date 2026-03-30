@@ -22,7 +22,7 @@
 # Requires bash >= 4, openssl >= 1.0.1e, awk, ls, cat, sed and wc.
 #
 # Created: 2020-07-10
-# Updated: 2026-03-24
+# Updated: 2026-03-30
 #
 # TODO:
 #  - Take care of stderr from openssl and print that on error
@@ -315,9 +315,9 @@ function create_ca() {
     # Create settings file
     cat <<- EOF > "${ca_dir}/private/settings.cfg"
 	# Settings for this CA
-	CA_SIGNED_CERT_DAYS=${ca_signed_cert_days}
-	CA_CRL_DAYS=${crl_days}
-	CA_CRL_URL=${ca_crl_url}
+	CA_SIGNED_CERT_DAYS=\${CA_SIGNED_CERT_DAYS:-${ca_signed_cert_days}}
+	CA_CRL_DAYS=\${CA_CRL_DAYS:-${crl_days}}
+	CA_CRL_URL=\${CA_CRL_URL:-${ca_crl_url}}
 	EOF
 
     # The database file (private/index) has a six field TAB separated layout
