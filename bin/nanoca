@@ -648,8 +648,8 @@ function create_request() {
     # Temporary config file to openssl
     openssl_cfg=$(mktemp -q "/tmp/nanoca-tmp-XXXXXX.cfg")
     if [[ -f "${openssl_cfg}" ]] ; then
+        # TODO add pkcs11 engine support here if simple?!
         cat <<- EOF > "${openssl_cfg}"
-	# TODO add pkcs11 engine support here if simple?!
 	# Temporary file that should not be lying around.
 	# Can be safely removed if found.
 	[req]
