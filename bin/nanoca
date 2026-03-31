@@ -523,7 +523,7 @@ function create_request() {
         done
 
         # Build correct SAN by prefixing the entries accordingly. We call prefix_san
-        # with an unquoted variable to get every part of the string as it's own argument
+        # with an unquoted variable to get every part of the string as its own argument
         # to the function
         csr_san=$(prefix_san ${san_str})
     else
@@ -1037,9 +1037,10 @@ function print_usage() {
 	Usage: nanoca [OPTIONS ...] COMMAND ...
 	
 	nanoca is a simple openssl based X.509 CA using files on disk. It can
-	create and sign signing requests and create a CRL with revoked certificates.
-	Multiple CAs can easily be created and are completely represented by files
-	in user specified directories, one per CA. See available commands below.
+	create certificate signing requests and and sign them and create CRLs with
+	revoked certificates. Multiple CAs can easily be created and are completely
+	represented by files in user specified directories, one per CA. See available
+	commands below.
 	
 	Commands:
 	  req KEY CSR        - Create a new Certificate Signing Request. The request
@@ -1079,8 +1080,8 @@ function print_usage() {
 	  recreate-crl       - Recreate the CRL. Must be used regularly since a CRL
 	                       has a limited lifespan. If CRLs for the CA is to be
 	                       used, this command must be run at even intervals and
-	                       the new CRL to be distributed to everyone using the
-	                       CA.
+	                       the new CRL needs to be distributed to everyone using
+	                       the CA.
 	  list               - List certificates that the CA has created.
 	  create             - Create a new CA in the current working directory
 	                       (or in CADIR given by the --dir option). Configuration
@@ -1240,12 +1241,17 @@ case "${command}" in
         ret=$?
         ;;
     re-sign)
-        if [[ -z "${2:-}" ]] ; then
-            echo "Error: No output filename given." >&2
+        if [[ -z "${1:-}" ]] ; then
+            echo "Error: No serial given." >&2
             ret=1
         else
-            sign_request "${ca_path}" "${ca_name}" "${ca_path}/csrs/$1.csr" "$2"
-            ret=$?
+            if [[ -z "${2:-}" ]] ; then
+                echo "Error: No output filename given." >&2
+                ret=1
+            else
+                sign_request "${ca_path}" "${ca_name}" "${ca_path}/csrs/$1.csr" "$2"
+                ret=$?
+            fi
         fi
         ;;
     list)
