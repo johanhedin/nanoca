@@ -189,12 +189,14 @@ function get_ca_name() {
     local ca_name_tmp=""
     local ca_name=""
 
-    num_key_files=$(ls "${ca_dir}"/private/*.key 2>/dev/null | wc -l)
-    if [[ "${num_key_files}" == "1" ]] ; then
-        key_file=$(ls "${ca_dir}"/private/*.key)
+    # For a directory to be a nanoca CA, it must contain a directory named "private"
+    # and inside that directory there must be a file ending with .key
+    key_file=$(find "${ca_dir}/private" -maxdepth 1 -name "*.key" 2>/dev/null | head -1)
+    if [[ -n "$key_file" ]]; then
         ca_name_tmp=$(basename "${key_file}")
         ca_name_tmp="${ca_name_tmp%.*}"
 
+        # Also check that some other files and directories exists
         if [[ -f "${ca_dir}/public/${ca_name_tmp}.crt" && \
               -d "${ca_dir}/crts" && \
               -d "${ca_dir}/csrs" && \
