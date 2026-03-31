@@ -870,6 +870,10 @@ function sign_request() {
     fi
 
     # Check the CSR and if empty subject, synthesize a subject from SAN
+    # TODO: Look over how subject= looks from different openssl versions.
+    # Some might output stray spaces making the empty trigger to not trigger.
+    # Also, see if there is a problem with the extraction of the first SAN
+    # in case there are a long list of SANs that span multiple lines
     if [[ -z "$(${OPENSSL} req -noout -subject -in "${in_csr}" | sed 's/subject=//g')" ]] ; then
         # Extract CN from first SAN in csr
         local first_san
