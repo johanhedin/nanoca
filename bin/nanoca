@@ -1037,7 +1037,7 @@ function print_usage() {
 	Usage: nanoca [OPTIONS ...] COMMAND ...
 	
 	nanoca is a simple openssl based X.509 CA using files on disk. It can
-	create certificate signing requests and and sign them and create CRLs with
+	create certificate signing requests and sign them and create CRLs with
 	revoked certificates. Multiple CAs can easily be created and are completely
 	represented by files in user specified directories, one per CA. See available
 	commands below.
@@ -1174,7 +1174,9 @@ while [[ "${1:-}" != "" ]] ; do
             ;;
 
         -*|--*)
-            # Just ignore any unsupported options
+            # Bail out on unsupported option
+            echo "Error: Unsupported option: $1" >&2
+            exit 1
             ;;
 
         *)
