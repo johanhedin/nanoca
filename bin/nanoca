@@ -873,8 +873,9 @@ function sign_request() {
     if [[ -z "$(${OPENSSL} req -noout -subject -in "${in_csr}" | sed 's/subject=//g')" ]] ; then
         # Extract CN from first SAN in csr
         local first_san
-        first_san=$(${OPENSSL} req -noout -text -in "${in_csr}" | ${AWK} -F'DNS:' '/DNS:/ { sub(",", ""); print $2 }')
+        first_san=$(${OPENSSL} req -noout -text -in "${in_csr}" | ${AWK} -F'DNS:' '/DNS:/ { sub(/[, ].*/, "", $2); print $2 }')
         synthesized_subj="/CN=${first_san}"
+        echo "$synthesized_subj"
     fi
 
     # Save the CSR
