@@ -1,14 +1,14 @@
 # nanoca with smart card
 `nanoca` can create CSRs using RSA keys on smart cards. This document is a short
 instruction how to create and provision a `nanoca` signed certificate on a
-[Aventra](https://aventra.fi) MyEID smart card using Fedora 41.
+[Aventra](https://aventra.fi) MyEID smart card using Fedora 43.
 
 The instruction is mainly based on the two following OpenSC Wiki pages:
 
 * https://github.com/OpenSC/OpenSC/wiki/Aventra-MyEID-PKI-card
 * https://github.com/OpenSC/OpenSC/wiki/Card-personalization
 
-Note that the instruction below only cover the simple case with one object
+Note that the instruction below only covers the simple case with one object
 (key/certificate pair) on the token and with only one PIN. More advanced
 use cases like multiple PINs, multiple keys and/or multiple certificates are
 outside the scope of this instruction.
@@ -17,7 +17,7 @@ outside the scope of this instruction.
 ## Prerequisites
 * Aventra MyEID smart card. Can be ordered from their [web shop](https://shop.aventra.fi/en).
 * Supported smart card reader.
-* Running Fedora 41 installation.
+* Running Fedora 43 installation.
 
 
 ## Software
@@ -28,8 +28,8 @@ already installed on your system):
 sudo dnf install opensc pcsc-lite openssl-pkcs11
 ```
 
-The commands `pkcs15-init`and `pkcs15-tool`used below are included in the
-`opensc`package.
+The commands `pkcs15-init` and `pkcs15-tool` used below are included in the
+`opensc` package.
 
 
 ## CA setup
@@ -56,8 +56,8 @@ the Security Officer. Write them down somewhere safe or be confident that you
 remember them. Do the same for the User, one PIN and one PUK.
 
 > [!NOTE]
-> If you loose the Security Officer PIN, you will not be able to wipe
-> the card and start over or provision new PINs, basically bricking the the card.
+> If you lose the Security Officer PIN, you will not be able to wipe
+> the card and start over or provision new PINs, basically bricking the card.
 
 Insert the card into the card reader and make sure that this card is the only
 PKCS11/PIV card/token connected to your computer. Then run the following:
@@ -67,7 +67,7 @@ pkcs15-init --create-pkcs15
 ```
 
 On older Fedora this command asked for PIN and/or PUK and did not work as stated
-in the manual (just press ENTER). If this happes, run the following instead:
+in the manual (just press ENTER). If this happens, run the following instead:
 
 ```console
 pkcs15-init --create-pkcs15 --pin 1234 --puk 1234
@@ -77,12 +77,12 @@ pkcs15-init --create-pkcs15 --pin 1234 --puk 1234
 
 You will be asked to set the Security Officer PIN and PUK. Enter the values that
 you came up with previously (note that the wording for the Security Officer PUK
-prompt is a bit misleading and talk about "User unblocking PIN", but it is the
+prompt is a bit misleading and talks about "User unblocking PIN", but it is the
 Security Officer PUK that is requested).
 
 The next step is to set the User PIN and PUK. For smart cards, a PIN is
-considered it's own "object". You create a PIN object and then references that
-object when creating a new key. The Security Officer PIN object created
+considered its own "object". You create a PIN object and then reference it
+when creating a new key. The Security Officer PIN object created
 previously is automatically assigned the ID ff. Here we choose the ID 01 when
 creating the User PIN object. The label below is optional, but it is nice to
 have meaningful names on objects:
@@ -111,7 +111,7 @@ pkcs15-tool --no-cache --list-pins
 
 The `--no-cache` option is used so that pkcs15-tool does not use the opensc
 file cache concept that Fedora activates out-of-the-box. The default settings
-are that pkcs15-init is not cached but pkcs15-tool is. This totally mess up
+are that pkcs15-init is not cached but pkcs15-tool is. This totally messes up
 things when you modify your card with pkcs15-init and then view the changes with
 pkcs15-tool. The caching can also be controlled system wide via `/etc/opensc.conf`.
 
@@ -124,11 +124,11 @@ pkcs15-tool --clear-cache
 or by removing the `~/.cache/opensc` directory.
 
 PIN objects can only be created once and can not be removed. The PIN codes
-can be changed (see futher down on this page) but to add new PIN objects or
+can be changed (see further down on this page) but to add new PIN objects or
 remove existing ones, the card need to be erased and then configured from scratch.
 
 
-## Create a RSA key on the card
+## Create an RSA key on the card
 To create a new RSA key object on the card run the following command:
 
 ```console
@@ -159,7 +159,7 @@ The actual private key is of course never shown, just information about it.
 
 ## Create CSR and signed certificate with nanoca
 You can now create a CSR using the key on the smart card. Given that only
-one key is on the card and that only one card inserted, it is enough to reference
+one key is on the card and that only one card is inserted, it is enough to reference
 the key with "pkcs11:" (note the : at the end). Use nanoca like this:
 
 ```console
@@ -234,7 +234,7 @@ pkcs15-tool --no-cache --read-certificate <ID> | openssl x509 -noout -text
 
 
 ## Remove certificate and key from the card
-It is possible to remove a certificate and a key from a card. Fist you need
+It is possible to remove a certificate and a key from a card. First you need
 to find the ID for the certificate/key to remove:
 
 ```console
@@ -279,8 +279,8 @@ handy when experimenting with smart cards. Run the following command:
 pkcs15-init --erase-card
 ```
 
-You will be asked for the Security Officer PIN to preform the erase. If you
-have lost it, the card is "lost" to.
+You will be asked for the Security Officer PIN to perform the erase. If you
+have lost it, the card is "lost" too.
 
 
 ## PKCS #11 related references
