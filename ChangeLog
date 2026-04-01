@@ -1,5 +1,6 @@
-* Mon Mar 30 2026 Johan Hedin - 1.5.4 (not released yet)
+* Wed Apr 1 2026 Johan Hedin - 1.5.4 (not released yet)
 - Code style cleanups
+- Add test written by Claude Code
 
 * Mon Mar 30 2026 Johan Hedin - 1.5.3
 - Support spaces in directory paths and filenames
