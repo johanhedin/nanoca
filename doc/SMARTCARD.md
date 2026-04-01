@@ -1,9 +1,9 @@
 # nanoca with smart card
 `nanoca` can create CSRs using RSA keys on smart cards. This document is a short
-instruction how to create and provision a `nanoca` signed certificate on a
+guide on how to create and provision a `nanoca` signed certificate on a
 [Aventra](https://aventra.fi) MyEID smart card using Fedora 43.
 
-The instruction is mainly based on the two following OpenSC Wiki pages:
+The instruction is mainly based on the following two OpenSC Wiki pages:
 
 * https://github.com/OpenSC/OpenSC/wiki/Aventra-MyEID-PKI-card
 * https://github.com/OpenSC/OpenSC/wiki/Card-personalization
@@ -21,7 +21,7 @@ outside the scope of this instruction.
 
 
 ## Software
-OpenSC, pcsc-lite and pkcs11_engine need to be installed (they are most likely
+OpenSC, pcsc-lite, and pkcs11_engine need to be installed (they are most likely
 already installed on your system):
 
 ```console
@@ -33,7 +33,7 @@ The commands `pkcs15-init` and `pkcs15-tool` used below are included in the
 
 
 ## CA setup
-Setup a `nanoca` CA (or use an existing one):
+Set up a `nanoca` CA (or use an existing one):
 
 ```console
 mkdir smartcard_ca
@@ -60,13 +60,13 @@ remember them. Do the same for the User, one PIN and one PUK.
 > the card and start over or provision new PINs, basically bricking the card.
 
 Insert the card into the card reader and make sure that this card is the only
-PKCS11/PIV card/token connected to your computer. Then run the following:
+PKCS#11/PIV card/token connected to your computer. Then run the following:
 
 ```console
 pkcs15-init --create-pkcs15
 ```
 
-On older Fedora this command asked for PIN and/or PUK and did not work as stated
+On older Fedora, this command asked for PIN and/or PUK and did not work as stated
 in the manual (just press ENTER). If this happens, run the following instead:
 
 ```console
@@ -83,7 +83,7 @@ Security Officer PUK that is requested).
 The next step is to set the User PIN and PUK. For smart cards, a PIN is
 considered its own "object". You create a PIN object and then reference it
 when creating a new key. The Security Officer PIN object created
-previously is automatically assigned the ID ff. Here we choose the ID 01 when
+previously is automatically assigned the ID `ff`. Here, we choose the ID `01` when
 creating the User PIN object. The label below is optional, but it is nice to
 have meaningful names on objects:
 
@@ -109,11 +109,11 @@ with the `pkcs15-tool`:
 pkcs15-tool --no-cache --list-pins
 ```
 
-The `--no-cache` option is used so that pkcs15-tool does not use the opensc
-file cache concept that Fedora activates out-of-the-box. The default settings
-are that pkcs15-init is not cached but pkcs15-tool is. This totally messes up
-things when you modify your card with pkcs15-init and then view the changes with
-pkcs15-tool. The caching can also be controlled system wide via `/etc/opensc.conf`.
+The `--no-cache` option is used so that `pkcs15-tool` does not use the `opensc`
+file cache concept that Fedora activates out of the box. The default settings
+are that `pkcs15-init` is not cached but `pkcs15-tool` is. This totally messes up
+things when you modify your card with `pkcs15-init` and then view the changes with
+`pkcs15-tool`. The caching can also be controlled system-wide via `/etc/opensc.conf`.
 
 If the cache bites you anyway, it can be cleared with:
 
@@ -123,29 +123,29 @@ pkcs15-tool --clear-cache
 
 or by removing the `~/.cache/opensc` directory.
 
-PIN objects can only be created once and can not be removed. The PIN codes
-can be changed (see further down on this page) but to add new PIN objects or
-remove existing ones, the card need to be erased and then configured from scratch.
+PIN objects can only be created once and cannot be removed. The PIN codes
+can be changed (see further down on this page), but to add new PIN objects or
+remove existing ones, the card needs to be erased and then configured from scratch.
 
 
 ## Create an RSA key on the card
-To create a new RSA key object on the card run the following command:
+To create a new RSA key object on the card, run the following command:
 
 ```console
 pkcs15-init --generate-key "rsa:2048" --key-usage digitalSignature,keyEncipherment \
             --auth-id 01 --label "My Name" --public-key-label "My Name"
 ```
 
-Replace "My Name" with the name you intend to use as Common Name in the
+Replace "My Name" with the name you intend to use as the Common Name in the
 certificate later on. There is no real requirement for them to match, but it
-makes everything much more clear if they do. The `--auth-id 01` argument will
+makes everything much clearer if they do. The `--auth-id 01` argument will
 tie this key to the one and only User PIN object that was created in the
 initialization step. The `--key-usage` must match the key usage set in the
-X.509 certificate (nanoca sets it like above).
+X.509 certificate (`nanoca` sets it as above).
 
 > [!NOTE]
 > The keypair will automatically be assigned a unique ID calculated from
-> the public key. If you like to set your own ID do that with the `--id <ID>`
+> the public key. If you want to set your own ID, do that with the `--id <ID>`
 > option where `<ID>` is a hex value, e.g. `--id 45fa23`.
 
 To list the key (both the private part and the public part), use:
@@ -160,14 +160,14 @@ The actual private key is of course never shown, just information about it.
 ## Create CSR and signed certificate with nanoca
 You can now create a CSR using the key on the smart card. Given that only
 one key is on the card and that only one card is inserted, it is enough to reference
-the key with "pkcs11:" (note the : at the end). Use nanoca like this:
+the key with "pkcs11:" (note the : at the end). Use `nanoca` like this:
 
 ```console
 nanoca req "pkcs11:" /tmp/my_name.csr
 ```
 
 Choose "2 - Request for personal client certificate" and enter the desired
-information when asked for. Use "My Name" as Common Name. You will be asked for
+information when prompted. Use "My Name" as the Common Name. You will be asked for
 the User PIN when the CSR is created because the CSR is signed with your private
 key.
 
@@ -185,18 +185,18 @@ cd smartcard_ca
 nanoca sign /tmp/my_name.csr /tmp/my_name.crt
 ```
 
-You can inspect the newly created certificate with `openssl` with the `x509` command:
+You can inspect the newly created certificate with the `openssl x509` command:
 
 ```console
 openssl x509 -noout -text -in /tmp/my_name.crt
 ```
 
-You now have a signed certificate. The next step is to put it into the card.
-The file `/tmp/my_name.csr` is not needed any more and can be removed.
+You now have a signed certificate. The next step is to put it onto the card.
+The file `/tmp/my_name.csr` is not needed anymore and can be removed.
 
 
 ## Write certificate to the smart card
-The final step is to write your certificate into the card:
+The final step is to write your certificate onto the card:
 
 ```console
 pkcs15-init --store-certificate /tmp/my_name.crt --label "My Name"
@@ -204,7 +204,7 @@ pkcs15-init --store-certificate /tmp/my_name.crt --label "My Name"
 
 Remember to use the same label here as in the `--generate-key` step above. You
 will be asked for the User PIN to complete the operation. When completed
-without errors, the file `/tmp/my_name.crt` is not needed any more and can be
+without errors, the file `/tmp/my_name.crt` is not needed anymore and can be
 removed.
 
 > [!NOTE]
@@ -223,9 +223,9 @@ pkcs15-tool --no-cache --list-keys --list-public-keys --list-certificates
 
 Note that the IDs are all the same for the objects. This is expected because
 they all belong together. An object is uniquely identified by the combination
-of id and object type (privkey, pubkey, cert).
+of ID and object type (privkey, pubkey, cert).
 
-To write a text representation of a certificate on the card, identify the ID
+To write a text representation of a certificate stored on the card, identify the ID
 of the certificate from above and run:
 
 ```console
@@ -234,14 +234,14 @@ pkcs15-tool --no-cache --read-certificate <ID> | openssl x509 -noout -text
 
 
 ## Remove certificate and key from the card
-It is possible to remove a certificate and a key from a card. First you need
+It is possible to remove a certificate and a key from a card. First, you need
 to find the ID for the certificate/key to remove:
 
 ```console
 pkcs15-tool --no-cache --list-keys --list-public-keys --list-certificates
 ```
 
-Note the ID and object type for the object you want to remove and then run one
+Note the ID and object type for the object you want to remove, then run one
 or all of the following:
 
 ```console
@@ -250,7 +250,7 @@ pkcs15-init --delete-objects pubkey --id <ID from above>
 pkcs15-init --delete-objects privkey --id <ID from above>
 ```
 
-And start over creating new objects.
+Then start over, creating new objects.
 
 > [!WARNING]
 > If you remove the privkey, the pubkey becomes useless.
@@ -258,13 +258,13 @@ And start over creating new objects.
 
 ## Change PIN
 It is possible to change the User PIN and the Security Officer PIN with
-`pkcs15-tool`. Use the following to change the User PIN (the one with auth ID 01):
+`pkcs15-tool`. Use the following to change the User PIN (the one with auth ID `01`):
 
 ```console
 pkcs15-tool --no-cache --auth-id 01 --change-pin
 ```
 
-To change the Security Officer PIN, use auth ID ff instead:
+To change the Security Officer PIN, use auth ID `ff` instead:
 
 ```console
 pkcs15-tool --no-cache --auth-id ff --change-pin
