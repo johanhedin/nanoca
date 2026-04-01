@@ -12,10 +12,13 @@ SHARE_DIR = $(PREFIX)/share
 MAN1_DIR = $(SHARE_DIR)/man/man1
 COMPLETION_DIR = $(SHARE_DIR)/bash-completion/completions
 
-.PHONY: all install uninstall clean debug
+.PHONY: all test install uninstall clean debug
 
 all:
 	@:
+
+test:
+	@tests/test_nanoca.sh
 
 install:
 	install -D -m 755 bin/$(SCRIPT) $(BIN_DIR)/$(SCRIPT)
