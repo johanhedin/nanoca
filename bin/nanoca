@@ -34,7 +34,6 @@
 #  - Add printout of what the signed certificate will look like
 #  - Detect correct signature to use for re-sign
 #  - Add support for asking for salt len when using RSASSA-PSS
-#  - Also cleanup private/crtdb when purging expired certificates
 #
 set -euo pipefail
 
@@ -1074,13 +1073,16 @@ function purge_expired_certs() {
         fi
     fi
 
-    # Remove the expired certificates and the corresponding CSRs
+    # Remove the expired certificates, their cached CSRs and their crtdb entries
+    cp "${ca_dir}/private/crtdb" "${ca_dir}/private/crtdb.old"
     for cert_file in "${expired_files[@]}" ; do
+        local serial
+        serial=$(basename "${cert_file}" .pem)
         rm -f "${cert_file}"
-        rm -f "${ca_dir}/csrs/$(basename "${cert_file}" .pem).csr"
+        rm -f "${ca_dir}/csrs/${serial}.csr"
+        ${AWK} -F'\t' -v serial="${serial}" '$4 != serial' "${ca_dir}/private/crtdb" > "${ca_dir}/private/crtdb.tmp"
+        mv "${ca_dir}/private/crtdb.tmp" "${ca_dir}/private/crtdb"
     done
-
-    # TODO: Also cleanup private/crtdb when purging expired certificates
 
     return 0
 } # purge_expired_certs

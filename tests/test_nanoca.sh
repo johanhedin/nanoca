@@ -821,14 +821,17 @@ ${OPENSSL} x509 -req -in "${EXPIRED_CSR}" \
     -not_after 20200102000000Z \
     -out "${EXPIRED_PEM}" 2>/dev/null
 cp "${EXPIRED_CSR}" "${EXPIRED_CACHED_CSR}"
+printf "V\t200102000000Z\t\tFE\tunknown\t/CN=expired-test\n" >> "${CADIR}/private/crtdb"
 
 check_file "${EXPIRED_PEM}"        "purge setup: expired cert placed in crts/"
 check_file "${EXPIRED_CACHED_CSR}" "purge setup: cached CSR placed in csrs/"
+grep -q $'\tFE\t' "${CADIR}/private/crtdb"
+check_rc "purge setup: FE entry present in crtdb" 0 $?
 
 "${OPENSSL}" x509 -checkend 0 -noout -in "${EXPIRED_PEM}" 2>/dev/null && _expired_rc=0 || _expired_rc=$?
 check_rc "purge setup: cert is indeed expired (checkend 0 non-zero)" 1 ${_expired_rc}
 
-# Purge with --yes should remove cert and cached CSR silently
+# Purge with --yes should remove cert, cached CSR and crtdb entry silently
 run "${NANOCA}" --yes --dir="${CADIR}" purge
 check_rc "purge --yes exits 0" 0 ${_rc}
 [[ -z "${_out}" ]] \
@@ -840,6 +843,14 @@ check_rc "purge --yes exits 0" 0 ${_rc}
 [[ ! -f "${EXPIRED_CACHED_CSR}" ]] \
     && ok "purge --yes: cached CSR removed from csrs/" \
     || fail "purge --yes: cached CSR removed from csrs/" "file still exists"
+check_file "${CADIR}/private/crtdb.old" "purge --yes: crtdb.old backup created"
+if grep -q $'\tFE\t' "${CADIR}/private/crtdb" 2>/dev/null ; then
+    fail "purge --yes: FE entry removed from crtdb"
+else
+    ok "purge --yes: FE entry removed from crtdb"
+fi
+grep -q $'\t01\t' "${CADIR}/private/crtdb"
+check_rc "purge --yes: valid entries remain in crtdb" 0 $?
 
 # Running purge again when clean should also be silent
 run "${NANOCA}" --yes --dir="${CADIR}" purge
