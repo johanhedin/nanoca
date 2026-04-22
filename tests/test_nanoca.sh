@@ -796,6 +796,102 @@ check_file "${SPACEDIR}/public/${SPACE_STEM}.crl" "recreate-crl with spaces: CRL
 check_rc "recreate-crl with spaces: CRL signature verifies against CA cert" 0 $?
 
 # ---------------------------------------------------------------------------
+# Section: purge
+# ---------------------------------------------------------------------------
+section "purge"
+
+# No expired certs yet — should be silent
+run "${NANOCA}" --yes --dir="${CADIR}" purge
+check_rc "purge on CA with no expired certs exits 0" 0 ${_rc}
+[[ -z "${_out}" ]] \
+    && ok "purge: no output when no expired certs exist" \
+    || fail "purge: no output when no expired certs exist" "got '${_out}'"
+
+# Create an expired certificate using openssl directly, plus a matching cached CSR
+EXPIRED_KEY="${TMPDIR_BASE}/expired.key"
+EXPIRED_CSR="${TMPDIR_BASE}/expired.csr"
+EXPIRED_PEM="${CADIR}/crts/FE.pem"
+EXPIRED_CACHED_CSR="${CADIR}/csrs/FE.csr"
+
+${OPENSSL} req -new -nodes -newkey rsa:2048 -keyout "${EXPIRED_KEY}" \
+    -subj "/CN=expired-test" -out "${EXPIRED_CSR}" 2>/dev/null
+${OPENSSL} x509 -req -in "${EXPIRED_CSR}" \
+    -signkey "${EXPIRED_KEY}" \
+    -not_before 20200101000000Z \
+    -not_after 20200102000000Z \
+    -out "${EXPIRED_PEM}" 2>/dev/null
+cp "${EXPIRED_CSR}" "${EXPIRED_CACHED_CSR}"
+
+check_file "${EXPIRED_PEM}"        "purge setup: expired cert placed in crts/"
+check_file "${EXPIRED_CACHED_CSR}" "purge setup: cached CSR placed in csrs/"
+
+"${OPENSSL}" x509 -checkend 0 -noout -in "${EXPIRED_PEM}" 2>/dev/null && _expired_rc=0 || _expired_rc=$?
+check_rc "purge setup: cert is indeed expired (checkend 0 non-zero)" 1 ${_expired_rc}
+
+# Purge with --yes should remove cert and cached CSR silently
+run "${NANOCA}" --yes --dir="${CADIR}" purge
+check_rc "purge --yes exits 0" 0 ${_rc}
+[[ -z "${_out}" ]] \
+    && ok "purge --yes: no output (silent removal)" \
+    || fail "purge --yes: no output (silent removal)" "got '${_out}'"
+[[ ! -f "${EXPIRED_PEM}" ]] \
+    && ok "purge --yes: expired cert removed from crts/" \
+    || fail "purge --yes: expired cert removed from crts/" "file still exists"
+[[ ! -f "${EXPIRED_CACHED_CSR}" ]] \
+    && ok "purge --yes: cached CSR removed from csrs/" \
+    || fail "purge --yes: cached CSR removed from csrs/" "file still exists"
+
+# Running purge again when clean should also be silent
+run "${NANOCA}" --yes --dir="${CADIR}" purge
+check_rc "purge after clean exits 0" 0 ${_rc}
+[[ -z "${_out}" ]] \
+    && ok "purge after clean: silent when nothing to remove" \
+    || fail "purge after clean: silent when nothing to remove" "got '${_out}'"
+
+# Interactive purge: confirm with y → should show found + subjects, then remove both files
+${OPENSSL} x509 -req -in "${EXPIRED_CSR}" \
+    -signkey "${EXPIRED_KEY}" \
+    -not_before 20200101000000Z \
+    -not_after 20200102000000Z \
+    -out "${EXPIRED_PEM}" 2>/dev/null
+cp "${EXPIRED_CSR}" "${EXPIRED_CACHED_CSR}"
+
+_out=$(printf "y\n" | "${NANOCA}" --dir="${CADIR}" purge 2>&1)
+_rc=$?
+check_rc "purge interactive (confirm y) exits 0" 0 ${_rc}
+check_output "${_out}" "Found.*expired" "purge interactive: prints Found header"
+check_output "${_out}" "expired-test" "purge interactive: lists expired cert subject"
+[[ ! -f "${EXPIRED_PEM}" ]] \
+    && ok "purge interactive confirm: expired cert removed" \
+    || fail "purge interactive confirm: expired cert removed" "file still exists"
+[[ ! -f "${EXPIRED_CACHED_CSR}" ]] \
+    && ok "purge interactive confirm: cached CSR removed" \
+    || fail "purge interactive confirm: cached CSR removed" "file still exists"
+
+# Interactive purge: decline with n → should NOT remove
+${OPENSSL} x509 -req -in "${EXPIRED_CSR}" \
+    -signkey "${EXPIRED_KEY}" \
+    -not_before 20200101000000Z \
+    -not_after 20200102000000Z \
+    -out "${EXPIRED_PEM}" 2>/dev/null
+
+_out=$(printf "n\n" | "${NANOCA}" --dir="${CADIR}" purge 2>&1)
+_rc=$?
+check_rc "purge interactive (decline n) exits 0" 0 ${_rc}
+check_output "${_out}" "Found.*expired" "purge interactive decline: still prints Found header"
+[[ -f "${EXPIRED_PEM}" ]] \
+    && ok "purge interactive decline: expired cert NOT removed" \
+    || fail "purge interactive decline: expired cert NOT removed" "file was deleted"
+
+rm -f "${EXPIRED_PEM}"
+
+# Valid certs must survive a purge
+valid_count=$(ls "${CADIR}/crts/"*.pem 2>/dev/null | wc -l)
+[[ "${valid_count}" -ge 4 ]] \
+    && ok "purge: valid certs untouched (${valid_count} remaining)" \
+    || fail "purge: valid certs untouched" "only ${valid_count} remain"
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 echo ""

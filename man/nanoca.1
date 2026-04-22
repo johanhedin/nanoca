@@ -1,4 +1,4 @@
-.TH NANOCA 1 "30 March 2026" "1.5.3" "nanoca User Manual"
+.TH NANOCA 1 "22 April 2026" "1.6.0" "nanoca User Manual"
 
 .SH NAME
 nanoca \- simple X.509 Certificate Authority
@@ -33,8 +33,8 @@ Show version and exit.
 
 .TP
 .BR \-y ", " \-\-yes
-Answer yes to all questions and use defaults. Useful in non-interactive cases. Only
-used for the create and sign commands for the time being.
+Answer yes to all questions and use defaults. Useful in non-interactive cases. Used
+for the \fBcreate\fR, \fBsign\fR, and \fBpurge\fR commands.
 
 .TP
 .BR \-d ", " \-\-dir =\fICADIR\fR
@@ -112,6 +112,13 @@ command need to be run to generate a new CRL.
 Recreate the CRL. Must be used regularly since a CRL has a limited lifespan. If
 CRLs for the CA is to be used, this command must be run at even intervals and
 the new CRL to be distributed to everyone using the CA.
+
+.TP
+.BR purge
+Remove expired certificates from the internal CA cache. Each certificate
+file is inspected and those whose validity period has passed are listed and
+then deleted after confirmation. If the \fB\-\-yes\fR option is given, the
+deletion is performed without asking for confirmation.
 
 .TP
 \fBreq\fR \fIKEY\fR \fICSR\fR

@@ -22,7 +22,7 @@
 # Requires bash >= 4, openssl >= 1.0.1e, awk, ls, cat, sed and wc.
 #
 # Created: 2020-07-10
-# Updated: 2026-03-30
+# Updated: 2026-04-22
 #
 # TODO:
 #  - Take care of stderr from openssl and print that on error
@@ -34,11 +34,12 @@
 #  - Add printout of what the signed certificate will look like
 #  - Detect correct signature to use for re-sign
 #  - Add support for asking for salt len when using RSASSA-PSS
+#  - Also cleanup private/crtdb when purging expired certificates
 #
 set -euo pipefail
 
 # Basic constants
-declare -r VERSION="1.5.3"
+declare -r VERSION="1.6.0"
 declare -r OPENSSL="/usr/bin/openssl"
 declare -r AWK="/usr/bin/awk"
 
@@ -1037,6 +1038,54 @@ function list_certs() {
 } # list_certs
 
 
+function purge_expired_certs() {
+    local ca_dir="$1"
+    local ca_name="$2"
+    local found=0
+    local expired_files=()
+
+    # Build a list of expired certificates
+    for cert_file in "${ca_dir}/crts/"*.pem ; do
+        [[ -f "${cert_file}" ]] || continue
+
+        if ! ${OPENSSL} x509 -checkend 0 -noout -in "${cert_file}" &>/dev/null ; then
+            expired_files+=("${cert_file}")
+            found=$((found + 1))
+        fi
+    done
+
+    # If none found, just exit
+    if [[ ${found} -eq 0 ]] ; then
+        return 0
+    fi
+
+    # Only be verbose and ask for confirmation unless --yes is given
+    if [[ ${all_yes} -eq 0 ]] ; then
+        echo "Found ${found} expired certificate(s):"
+        for cert_file in "${expired_files[@]}" ; do
+            local serial subject
+            serial=$(basename "${cert_file}" .pem)
+            subject=$(${OPENSSL} x509 -noout -subject -in "${cert_file}" 2>/dev/null | sed 's/subject=[ ]*//')
+            echo "  Serial ${serial}: ${subject}"
+        done
+
+        if ! yesanswer "No" "Remove" ; then
+            return 0
+        fi
+    fi
+
+    # Remove the expired certificates and the corresponding CSRs
+    for cert_file in "${expired_files[@]}" ; do
+        rm -f "${cert_file}"
+        rm -f "${ca_dir}/csrs/$(basename "${cert_file}" .pem).csr"
+    done
+
+    # TODO: Also cleanup private/crtdb when purging expired certificates
+
+    return 0
+} # purge_expired_certs
+
+
 function print_usage() {
     cat <<- EOF
 	Usage: nanoca [OPTIONS ...] COMMAND ...
@@ -1088,6 +1137,9 @@ function print_usage() {
 	                       the new CRL needs to be distributed to everyone using
 	                       the CA.
 	  list               - List certificates that the CA has created.
+	  purge              - Remove expired certificates from the CA. Inspects each
+	                       certificate and deletes those that have expired. Asks
+	                       for confirmation unless --yes is given.
 	  create             - Create a new CA in the current working directory
 	                       (or in CADIR given by the --dir option). Configuration
 	                       will be asked for interactively. The directory must
@@ -1271,6 +1323,10 @@ case "${command}" in
         ;;
     recreate-crl)
         recreate_crl "${ca_path}" "${ca_name}" "$@"
+        ret=$?
+        ;;
+    purge)
+        purge_expired_certs "${ca_path}" "${ca_name}" "$@"
         ret=$?
         ;;
     name)
