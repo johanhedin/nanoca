@@ -38,6 +38,7 @@ Everything lives in `bin/nanoca`. Key internal functions:
 | `revoke_cert()` | Marks a cert as revoked in `crtdb` |
 | `recreate_crl()` | Regenerates the CRL file |
 | `list_certs()` | Reads `crtdb` and prints a summary |
+| `purge_expired_certs()` | Removes expired certs from `crts/`, their cached CSRs from `csrs/`, and their rows from `crtdb`; backs up `crtdb` to `crtdb.old` first |
 
 The script uses a global `openssl_cfg` variable to hold the path to a
 temporary OpenSSL config file; `exit_cleanup()` (trapped on EXIT) removes
@@ -53,8 +54,13 @@ A CA directory contains:
 
 The CN slug is the CN with spaces replaced by hyphens and lowercased.
 
+### openssl x509 -checkend stdout
+`openssl x509 -checkend 0` prints "Certificate will expire" / "Certificate will not expire"
+to **stdout** even when `-noout` is given. Suppress it with `&>/dev/null`, not just
+`2>/dev/null`, or it will leak into captured output.
+
 ### Non-interactive / scripted use
-`create` and `sign` respect `--yes` / `-y` to skip confirmation prompts.
+`create`, `sign`, and `purge` respect `--yes` / `-y` to skip confirmation prompts.
 For `create`, supply subject fields via env vars:
 
 ```bash
