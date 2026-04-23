@@ -1,4 +1,4 @@
-.TH NANOCA 1 "22 April 2026" "1.6.0" "nanoca User Manual"
+.TH NANOCA 1 "23 April 2026" "1.6.0" "nanoca User Manual"
 
 .SH NAME
 nanoca \- simple X.509 Certificate Authority
@@ -9,6 +9,7 @@ nanoca \- simple X.509 Certificate Authority
 [\fB\-h\fR]
 [\fB\-v\fR]
 [\fB\-y\fR]
+[\fB\-c\fR]
 [\fB\-d\fR|\fB\-\-dir\fR \fICADIR\fR]
 .IR command
 [args...]
@@ -35,6 +36,13 @@ Show version and exit.
 .BR \-y ", " \-\-yes
 Answer yes to all questions and use defaults. Useful in non-interactive cases. Used
 for the \fBcreate\fR, \fBsign\fR, and \fBpurge\fR commands.
+
+.TP
+.BR \-c ", " \-\-client-auth
+Force TLS Web Client Authentication (\fBclientAuth\fR) into the signed certificate.
+Only used for the \fBsign\fR and \fBre-sign\fR commands. If the CSR already includes
+\fBclientAuth\fR this option has no effect. Any other Extended Key Usage values
+present in the CSR are preserved.
 
 .TP
 .BR \-d ", " \-\-dir =\fICADIR\fR
@@ -90,7 +98,8 @@ end with \'.csr\'. \fICRT\fR is the path to where the new certificate will be
 written. If left out, defaults to \fICSR\fR but with the \'.csr\' extension
 replaced with \'.crt\'. If the \fB\-\-yes\fR option is given, the signing is done
 without any questions and with the defaults. Useful for non-interactive use in
-scripts.
+scripts. If the \fB\-\-client-auth\fR option is given, \fBclientAuth\fR is added
+to the signed certificate even if it is not present in the CSR.
 
 .TP
 \fBre-sign\fR \fISERIAL\fR \fICRT\fR

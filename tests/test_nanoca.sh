@@ -112,6 +112,7 @@ run "${NANOCA}" --help
 check_rc "--help exits 0" 0 ${_rc}
 check_output "${_out}" "Usage:" "--help output contains 'Usage:'"
 check_output "${_out}" "Commands:" "--help output contains 'Commands:'"
+check_output "${_out}" "client-auth" "--help output documents --client-auth option"
 
 run "${NANOCA}" -h
 check_rc "-h exits 0" 0 ${_rc}
@@ -599,6 +600,94 @@ if "${OPENSSL}" x509 -noout -text -in "${SRV_CRT}" 2>/dev/null \
 else
     ok "sign (no CRL URL): cert has no CRL Distribution Point"
 fi
+
+# ---------------------------------------------------------------------------
+# Section: sign — --client-auth option
+# ---------------------------------------------------------------------------
+section "sign — --client-auth option"
+
+# Create a CSR with no EKU directly via openssl (no KU/EKU extensions at all)
+NO_EKU_KEY="${WORKDIR}/noeku.key"
+NO_EKU_CSR="${WORKDIR}/noeku.csr"
+${OPENSSL} req -new -nodes -newkey rsa:2048 -keyout "${NO_EKU_KEY}" \
+    -subj "/CN=noeku.example.com" -out "${NO_EKU_CSR}" 2>/dev/null
+
+# 1. serverAuth-only CSR: --client-auth adds clientAuth and preserves serverAuth
+CA_AUTH_CRT="${WORKDIR}/server-client-auth.crt"
+run "${NANOCA}" --yes --client-auth --dir="${CADIR}" sign "${SRV_CSR}" "${CA_AUTH_CRT}"
+check_rc "--client-auth sign exits 0" 0 ${_rc}
+check_file "${CA_AUTH_CRT}" "--client-auth: certificate created"
+
+"${OPENSSL}" verify -CAfile "${CADIR}/public/test-ca.crt" "${CA_AUTH_CRT}" &>/dev/null
+check_rc "--client-auth: certificate valid and signed by CA" 0 $?
+
+"${OPENSSL}" x509 -noout -text -in "${CA_AUTH_CRT}" 2>/dev/null \
+    | grep -q "TLS Web Client Authentication"
+check_rc "--client-auth: clientAuth added to cert with serverAuth-only CSR" 0 $?
+
+"${OPENSSL}" x509 -noout -text -in "${CA_AUTH_CRT}" 2>/dev/null \
+    | grep -q "TLS Web Server Authentication"
+check_rc "--client-auth: serverAuth preserved in cert with serverAuth-only CSR" 0 $?
+
+# 2. -c short form works identically
+CA_SHORT_CRT="${WORKDIR}/server-short-c.crt"
+run "${NANOCA}" --yes -c --dir="${CADIR}" sign "${SRV_CSR}" "${CA_SHORT_CRT}"
+check_rc "-c short form exits 0" 0 ${_rc}
+
+"${OPENSSL}" x509 -noout -text -in "${CA_SHORT_CRT}" 2>/dev/null \
+    | grep -q "TLS Web Client Authentication"
+check_rc "-c short form: clientAuth present in signed cert" 0 $?
+
+# 3. CSR that already has clientAuth: --client-auth is idempotent (not duplicated)
+CA_IDEMPOTENT_CRT="${WORKDIR}/pers-client-auth.crt"
+run "${NANOCA}" --yes --client-auth --dir="${CADIR}" sign "${PERS_CSR}" "${CA_IDEMPOTENT_CRT}"
+check_rc "--client-auth on CSR already with clientAuth exits 0" 0 ${_rc}
+
+"${OPENSSL}" x509 -noout -text -in "${CA_IDEMPOTENT_CRT}" 2>/dev/null \
+    | grep -q "TLS Web Client Authentication"
+check_rc "--client-auth idempotent: clientAuth still present" 0 $?
+
+eku_count=$("${OPENSSL}" x509 -noout -text -in "${CA_IDEMPOTENT_CRT}" 2>/dev/null \
+    | grep -c "TLS Web Client Authentication" || true)
+[[ "${eku_count}" -eq 1 ]] \
+    && ok "--client-auth idempotent: clientAuth not duplicated" \
+    || fail "--client-auth idempotent: clientAuth not duplicated" "count=${eku_count}"
+
+# 4. No-EKU CSR: --client-auth adds clientAuth from nothing
+NO_EKU_CRT="${WORKDIR}/noeku.crt"
+run "${NANOCA}" --yes --client-auth --dir="${CADIR}" sign "${NO_EKU_CSR}" "${NO_EKU_CRT}"
+check_rc "--client-auth on no-EKU CSR exits 0" 0 ${_rc}
+check_file "${NO_EKU_CRT}" "--client-auth no-EKU: certificate created"
+
+"${OPENSSL}" x509 -noout -text -in "${NO_EKU_CRT}" 2>/dev/null \
+    | grep -q "TLS Web Client Authentication"
+check_rc "--client-auth no-EKU: clientAuth added to cert from CSR with no EKU" 0 $?
+
+# 5. Control: without --client-auth, a serverAuth-only CSR stays serverAuth-only
+NO_FLAG_CRT="${WORKDIR}/server-no-flag.crt"
+run "${NANOCA}" --yes --dir="${CADIR}" sign "${SRV_CSR}" "${NO_FLAG_CRT}"
+check_rc "sign without --client-auth exits 0" 0 ${_rc}
+
+if "${OPENSSL}" x509 -noout -text -in "${NO_FLAG_CRT}" 2>/dev/null \
+        | grep -q "TLS Web Client Authentication"; then
+    fail "sign without --client-auth: clientAuth must NOT be present"
+else
+    ok "sign without --client-auth: clientAuth absent from cert (as expected)"
+fi
+
+# 6. re-sign with --client-auth: cached SAN-only CSR (serverAuth only) gets clientAuth added
+CLIENT_AUTH_RESIGN_SERIAL=$(awk -F'\t' 'NR==3{print $4}' "${CADIR}/private/crtdb")
+CA_RESIGN_AUTH_CRT="${WORKDIR}/sanonly-client-auth.crt"
+run "${NANOCA}" --yes --client-auth --dir="${CADIR}" re-sign "${CLIENT_AUTH_RESIGN_SERIAL}" "${CA_RESIGN_AUTH_CRT}"
+check_rc "--client-auth re-sign exits 0" 0 ${_rc}
+check_file "${CA_RESIGN_AUTH_CRT}" "--client-auth re-sign: certificate created"
+
+"${OPENSSL}" verify -CAfile "${CADIR}/public/test-ca.crt" "${CA_RESIGN_AUTH_CRT}" &>/dev/null
+check_rc "--client-auth re-sign: certificate valid and signed by CA" 0 $?
+
+"${OPENSSL}" x509 -noout -text -in "${CA_RESIGN_AUTH_CRT}" 2>/dev/null \
+    | grep -q "TLS Web Client Authentication"
+check_rc "--client-auth re-sign: clientAuth added to re-signed cert" 0 $?
 
 # ---------------------------------------------------------------------------
 # Section: list — with certificates

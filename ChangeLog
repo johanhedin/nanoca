@@ -1,7 +1,8 @@
-* Wed Apr 22 2026 Johan Hedin - 1.6.0 (not released yet)
+* Wed Apr 23 2026 Johan Hedin - 1.6.0 (not released yet)
 - Code style cleanups
 - Add test written by Claude Code
 - Add purge command that removes expired certificates
+- Add option to force clientAuth extension on signed certificates
 
 * Mon Mar 30 2026 Johan Hedin - 1.5.3
 - Support spaces in directory paths and filenames

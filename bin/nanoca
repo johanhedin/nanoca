@@ -22,7 +22,7 @@
 # Requires bash >= 4, openssl >= 1.0.1e, awk, ls, cat, sed and wc.
 #
 # Created: 2020-07-10
-# Updated: 2026-04-22
+# Updated: 2026-04-23
 #
 # TODO:
 #  - Take care of stderr from openssl and print that on error
@@ -78,6 +78,9 @@ declare -i all_yes
 
 # Global variable that holds the name of a temporary file
 declare openssl_cfg=""
+
+# Global variable to hold force-client-auth information
+declare -i force_client_auth=0
 
 
 # Exit hook to remove any created temporary file
@@ -809,6 +812,38 @@ function sign_request() {
         fi
     fi
 
+    # Compute forced EKU override when --client-auth is given
+    local forced_eku=""
+    if [[ ${force_client_auth} -eq 1 ]]; then
+        local csr_eku_text
+        csr_eku_text=$(${OPENSSL} req -noout -text -in "${in_csr}" 2>/dev/null | \
+            awk '/X509v3 Extended Key Usage:/{found=1; next} found{gsub(/^[[:space:]]+/,""); print; exit}')
+
+        if [[ -z "${csr_eku_text}" || "${csr_eku_text}" != *"TLS Web Client Authentication"* ]]; then
+            local -a eku_parts=()
+            local merged="" eku_part="" oid=""
+            [[ -n "${csr_eku_text}" ]] && IFS=',' read -ra eku_parts <<< "${csr_eku_text}"
+            if [[ ${#eku_parts[@]} -gt 0 ]]; then
+                for eku_part in "${eku_parts[@]}"; do
+                    eku_part="${eku_part#"${eku_part%%[![:space:]]*}"}"
+                    eku_part="${eku_part%"${eku_part##*[![:space:]]}"}"
+                    [[ -z "${eku_part}" ]] && continue
+                    case "${eku_part}" in
+                        "TLS Web Server Authentication") oid="serverAuth" ;;
+                        "Code Signing")                  oid="codeSigning" ;;
+                        "E-mail Protection")             oid="emailProtection" ;;
+                        "Time Stamping")                 oid="timeStamping" ;;
+                        "OCSP Signing")                  oid="OCSPSigning" ;;
+                        "Microsoft Smartcard Login")     oid="msSmartcardLogin" ;;
+                        *)                               oid="${eku_part}" ;;
+                    esac
+                    [[ -n "${oid}" ]] && merged="${merged}${merged:+,}${oid}"
+                done
+            fi
+            forced_eku="${merged}${merged:+,}clientAuth"
+        fi
+    fi
+
     # Some config to openssl must be given in the config file
     openssl_cfg="$(mktemp -q "${ca_dir}/nanoca-tmp-XXXXXX.cfg")"
     if [[ -f "${openssl_cfg}" ]] ; then
@@ -845,6 +880,7 @@ function sign_request() {
 	subjectKeyIdentifier   = hash
 	#authorityKeyIdentifier = keyid,issuer:always
 	authorityKeyIdentifier = keyid:always
+	${forced_eku:+extendedKeyUsage = ${forced_eku}}
 	EOF
 
         if [[ -n "${CA_CRL_URL}" ]] ; then
@@ -1154,6 +1190,10 @@ function print_usage() {
 	                     Only used for the create and sign commands at the moment. If
 	                     used for the create command, it is not possible to set a
 	                     password on the private key
+	  -c, --client-auth  Force TLS Web Client Authentication (clientAuth) into the
+	                     signed certificate. Only used for sign and re-sign. If the
+	                     CSR already includes clientAuth it has no effect. Existing
+	                     EKU values in the CSR are preserved and clientAuth is added.
 	  -d, --dir=CADIR    Path to where the CA resides. Defaults to current
 	                     working directory if not given
 	
@@ -1230,6 +1270,10 @@ while [[ "${1:-}" != "" ]] ; do
             ;;
         --dir=*)
             ca_path="${1#*=}"
+            ;;
+
+        -c|--client-auth)
+            force_client_auth=1
             ;;
 
         -*|--*)
