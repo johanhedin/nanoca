@@ -22,7 +22,7 @@
 # Requires bash >= 4, openssl >= 1.0.1e, awk, ls, cat, sed and wc.
 #
 # Created: 2020-07-10
-# Updated: 2026-04-23
+# Updated: 2026-06-01
 #
 # TODO:
 #  - Take care of stderr from openssl and print that on error
